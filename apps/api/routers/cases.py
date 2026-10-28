@@ -159,6 +159,29 @@ async def get_case(
         detail.text_english = None
         detail.ai_summary = None
         detail.priority_reasons = None
+        detail.case_brief = None
+    else:
+        try:
+            from agents.briefing import write_brief
+
+            ctx = {
+                "priority_score": case.priority_score,
+                "priority_reasons": case.priority_reasons,
+                "overlaps": [],
+                "institution_track_record": None,
+            }
+            detail.case_brief = write_brief(
+                {
+                    "case_no": case.case_no,
+                    "category": case.category,
+                    "criticality": case.criticality,
+                    "ai_summary": case.ai_summary,
+                    "status": case.status,
+                },
+                ctx,
+            )
+        except Exception:
+            detail.case_brief = None
     return detail
 
 

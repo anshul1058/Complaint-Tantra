@@ -1,0 +1,19 @@
+{
+  "findings": [
+    {
+      "url": "https://example.com/news/sample",
+      "title": "Sample notice",
+      "source_name": "Demo",
+      "published_at": "2026-10-01",
+      "summary": "Cached fixture for demo",
+      "topic": "other",
+      "sentiment": "neutral",
+      "emotion_label": "neutral",
+      "severity": 0.1,
+      "match_confidence": 0.9
+    }
+  ],
+  "reputation_summary": "Demo fixture",
+  "reputation_risk": 10.0,
+  "unverified": []
+}

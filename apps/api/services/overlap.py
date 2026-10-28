@@ -69,6 +69,31 @@ async def detect_overlaps(db: AsyncSession, case: Case) -> list[CaseLink]:
             + WEIGHTS["cat"] * cat_rel
             + WEIGHTS["time"] * t_ovl
         )
+
+        # Gray zone → LLM judge (system.md §5, §6.4): blend score with judge confidence
+        if GRAY_ZONE[0] <= score < GRAY_ZONE[1]:
+            try:
+                from agents.overlap import judge_overlap
+
+                verdict = judge_overlap(
+                    {
+                        "text_english": case.text_english,
+                        "raw_institution": case.raw_institution,
+                        "category": case.category,
+                    },
+                    {
+                        "text_english": cand.text_english,
+                        "raw_institution": cand.raw_institution,
+                        "category": cand.category,
+                    },
+                )
+                conf = float(verdict.get("confidence") or 0.0)
+                if verdict.get("related") in ("same_issue", "duplicate"):
+                    score = 0.5 * score + 0.5 * max(score, conf)
+                elif verdict.get("related") == "different_issue":
+                    score = 0.5 * score
+            except Exception:
+                pass  # offline path: keep deterministic score
         same_bureau = cand.assigned_bureau == case.assigned_bureau
         tier = assign_tier(score, text_sim, cat_rel, same_bureau)
         if tier is None:

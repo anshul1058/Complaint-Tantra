@@ -114,6 +114,7 @@ class ActionOut(BaseModel):
 class CaseDetailOut(CaseOut):
     timeline: list[ActionOut] = []
     institution_name: str | None = None
+    case_brief: dict | None = None
 
 
 class LinkDecisionRequest(BaseModel):
