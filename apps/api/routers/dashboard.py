@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth import ROLE_AUTHORITY, ROLE_SENIOR, get_current_user, require_roles
 from db import get_db
 from models import Case, Institution, User
-from schemas import AlertOut, DashboardSummaryOut, HeatmapRow, WorkloadRow
+from schemas import DashboardSummaryOut, HeatmapRow, WorkloadRow
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 

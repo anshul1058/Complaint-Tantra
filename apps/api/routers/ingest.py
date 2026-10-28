@@ -8,10 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents import detect_overlaps, run_intake, run_triage
 from auth import ROLE_ADMIN, ROLE_OFFICER, require_roles
-from db import SessionLocal, get_db
+from db import get_db
 from models import Alert, Case, Institution, User
 from schemas import CaseCreate, CaseOut, IngestRequest
-from services import case_service, priority as priority_service
+from services import priority as priority_service
 from services.case_service import create_case, resolve_institution, sla_days_for
 from services.entity_resolution import normalize_name, verdict
 from services.sla_engine import time_pressure
@@ -146,10 +146,20 @@ async def ingest_csv(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "CSV must be UTF-8")
     reader = csv.DictReader(io.StringIO(text))
     created = []
+    from sqlalchemy import select
+
     for row in reader:
         data = {k.strip(): (v.strip() if v else None) for k, v in row.items() if k}
         payload = CaseCreate(**{k: v for k, v in data.items() if k in CaseCreate.model_fields})
-        case = await create_case(db, payload.model_dump())
+        dump = payload.model_dump()
+        if dump.get("case_no"):
+            existing = (await db.execute(
+                select(Case).where(Case.case_no == dump["case_no"])
+            )).scalar_one_or_none()
+            if existing:
+                created.append(existing)
+                continue
+        case = await create_case(db, dump)
         await _post_ingest(db, case)
         created.append(case)
     return [CaseOut.model_validate(c) for c in created]

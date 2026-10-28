@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth import ROLE_AUTHORITY, ROLE_OFFICER, ROLE_REGIONAL, ROLE_SENIOR, get_current_user, require_roles
 from db import get_db
 from models import Case, Institution, InstitutionRisk, User, WebFinding
-from schemas import InstitutionOut, InstitutionProfileOut, IntelRefreshOut, WebFindingOut
+from schemas import InstitutionProfileOut, IntelRefreshOut, WebFindingOut
 
 router = APIRouter(prefix="/institutions", tags=["institutions"])
 

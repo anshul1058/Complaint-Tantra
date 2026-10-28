@@ -34,3 +34,11 @@ Thumbs.db
 
 # local notes
 thinking-log.md
+
+# scraped source dumps (rebuild via scripts/build_institutions_csv.py)
+data/raw/
+
+# dataset pipeline intermediates (regenerate: enrich → scrape → build)
+data/institutions_stage1.json
+data/site_cache.jsonl
+data/raw/

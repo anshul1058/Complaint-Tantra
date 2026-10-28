@@ -2,8 +2,6 @@
 
 from datetime import datetime, timedelta
 
-from services.state_machine import STATUSES  # noqa: F401  (re-export for convenience)
-
 DEFAULT_DAYS = 30
 DEFAULT_WARN_DAYS = 3
 

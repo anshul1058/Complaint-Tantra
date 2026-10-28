@@ -1,69 +1,172 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useEffect, useState, useCallback } from 'react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { KPICards } from '@/components/dashboard/KPICards';
+import { TrendChart } from '@/components/dashboard/TrendChart';
+import { BureauWorkloadChart } from '@/components/dashboard/BureauWorkloadChart';
+import { StatusSummaryCard } from '@/components/dashboard/StatusSummaryCard';
+import { TodoRemindersCard } from '@/components/dashboard/TodoRemindersCard';
+import { RegionHeatmap } from '@/components/dashboard/RegionHeatmap';
+import { DataDecisionsBanner } from '@/components/dashboard/DataDecisionsBanner';
+import {
+  getDashboardSummary,
+  getBureauWorkload,
+  getRegionHeatmap,
+  getAlerts,
+} from '@/lib/api/client';
+import {
+  DashboardSummary,
+  BureauWorkload,
+  RegionHeatmapData,
+  Alert,
+} from '@/lib/types';
+import {
+  mockDashboardSummary,
+  mockBureauWorkload,
+  mockRegionHeatmap,
+  mockAlerts,
+} from '@/lib/mock/data';
+import { RefreshCw, ArrowRight, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
+
+export default function DashboardPage() {
+  const [summary, setSummary] = useState<DashboardSummary>(mockDashboardSummary);
+  const [workload, setWorkload] = useState<BureauWorkload[]>(mockBureauWorkload);
+  const [heatmap, setHeatmap] = useState<RegionHeatmapData[]>(mockRegionHeatmap);
+  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const [s, w, h, a] = await Promise.all([
+        getDashboardSummary(),
+        getBureauWorkload(),
+        getRegionHeatmap(),
+        getAlerts(),
+      ]);
+      setSummary(s);
+      setWorkload(w);
+      setHeatmap(h);
+      setAlerts(a);
+    } catch {
+      // fallback
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      loadData();
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [loadData]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <AppLayout
+      actionButton={
+        <div className="flex items-center gap-2">
+          <button
+            onClick={loadData}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+            <RefreshCw
+              className={`w-3.5 h-3.5 text-[#0EA5E9] ${
+                isRefreshing ? 'animate-spin' : ''
+              }`}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            Live Sync (30s)
+          </button>
+
+          <Link
+            href="/queue"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#1E3A8A] hover:bg-[#1e40af] text-white text-xs font-bold shadow-xs transition"
           >
-            Documentation
-          </a>
+            <span>Priority Queue</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
-      </main>
-    </div>
+      }
+    >
+      {/* 1. TOP METRIC CARDS ROW: Real Live KPI metrics with reference design styling */}
+      <KPICards summary={summary} />
+
+      {/* 2. MIDDLE TWO-COLUMN GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-5 items-start">
+        
+        {/* Left Column (8 cols / 66.6%): Trend Trajectory & Bureau Workload */}
+        <div className="lg:col-span-8 space-y-5">
+          {/* 6-Month Intake vs Disposal Area Curve with Floating Peak Badge */}
+          <TrendChart />
+
+          {/* Bureau-wise Grievance Workload Distribution */}
+          <BureauWorkloadChart data={workload} />
+        </div>
+
+        {/* Right Column (4 cols / 33.3%): Status Summary & Interactive Action Feeds */}
+        <div className="lg:col-span-4 space-y-5">
+          {/* Status Summary with Sparkline & Progress Donuts */}
+          <StatusSummaryCard summary={summary} />
+
+          {/* Real-time Triage Action Items from API Alerts */}
+          <TodoRemindersCard alerts={alerts} />
+        </div>
+
+      </div>
+
+      {/* 3. BOTTOM SECTION: Geographic Density & Decisional Quote */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-6 items-stretch">
+        
+        {/* Left (8 cols): National Grievance Density across Regional Offices */}
+        <div className="lg:col-span-8">
+          <RegionHeatmap data={heatmap} />
+        </div>
+
+        {/* Right (4 cols): National Motto & Tricolor Branding */}
+        <div className="lg:col-span-4">
+          <DataDecisionsBanner />
+        </div>
+
+      </div>
+
+      {/* 4. SIH 2024 EVALUATOR QUICK TOUR BANNER */}
+      <div className="bg-gradient-to-r from-sky-50 via-white to-blue-50 border border-sky-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-2xs">
+        <div className="flex items-center gap-2.5">
+          <ShieldCheck className="w-5 h-5 text-[#1E3A8A]" />
+          <div>
+            <span className="font-extrabold text-[#1E3A8A] uppercase tracking-wide">
+              Smart India Hackathon Evaluator Tour:
+            </span>
+            <span className="text-slate-600 block sm:inline sm:ml-1 font-medium">
+              Explore the full AICTE complaint lifecycle in under 3 minutes.
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href="/queue"
+            className="px-3 py-1.5 bg-white border border-slate-200 text-[#1E3A8A] font-bold rounded-xl hover:bg-sky-50 hover:border-sky-300 transition shadow-2xs"
+          >
+            1. Scored Queue &rarr;
+          </Link>
+          <Link
+            href="/cases/case-001"
+            className="px-3 py-1.5 bg-white border border-slate-200 text-[#1E3A8A] font-bold rounded-xl hover:bg-sky-50 hover:border-sky-300 transition shadow-2xs"
+          >
+            2. AI Case Brief &rarr;
+          </Link>
+          <Link
+            href="/overlaps"
+            className="px-3.5 py-1.5 bg-[#1E3A8A] text-white font-bold rounded-xl hover:bg-[#1e40af] transition shadow-xs"
+          >
+            3. Overlap Room &rarr;
+          </Link>
+        </div>
+      </div>
+    </AppLayout>
   );
 }

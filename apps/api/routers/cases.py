@@ -273,8 +273,13 @@ async def overlap_decision(
     link = await db.get(CaseLink, link_id)
     if link is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Link not found")
-    case = await db.get(Case, link.case_a)
-    if case and not can_act_on_case(user, case.assigned_bureau):
+    # Officer can decide if either side is in their scope (§8: confirm/reject overlap)
+    case_a = await db.get(Case, link.case_a)
+    case_b = await db.get(Case, link.case_b)
+    in_scope = any(
+        c is not None and can_act_on_case(user, c.assigned_bureau) for c in (case_a, case_b)
+    )
+    if not in_scope:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Out of scope")
     link.decision = body.decision
     link.decided_by = user.id

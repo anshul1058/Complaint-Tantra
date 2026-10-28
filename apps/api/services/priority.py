@@ -1,7 +1,5 @@
 """Priority score — formula lives here, never in the LLM (system.md §4.4)."""
 
-from datetime import datetime
-
 CRITICALITY_WEIGHTS = {"C1": 1.00, "C2": 0.75, "C3": 0.50, "C4": 0.25}
 
 # distress/fear/hopelessness count more than frustration (§4.4)

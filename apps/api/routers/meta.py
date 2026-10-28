@@ -7,7 +7,7 @@ from auth import ALL_ROLES, get_current_user
 from db import get_db
 from models import SlaConfig, User
 from schemas import MetaOptionsOut
-from services.state_machine import STATUSES, TRANSITIONS, allowed_actions
+from services.state_machine import STATUSES, allowed_actions
 
 router = APIRouter(tags=["meta"])
 

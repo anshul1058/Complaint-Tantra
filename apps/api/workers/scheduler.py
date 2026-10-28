@@ -1,9 +1,9 @@
 """APScheduler jobs (demo mode) — hourly SLA alerts, nightly MV + risk refresh."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import delete, select, text
+from sqlalchemy import select, text
 
 from db import SessionLocal
 from models import Alert, Case, Institution, SlaConfig
