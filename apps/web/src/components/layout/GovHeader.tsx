@@ -104,6 +104,7 @@ export const GovHeader: React.FC = () => {
           {/* Date Range Selector Pill */}
           <div className="relative">
             <button
+              type="button"
               onClick={() => setShowDatePicker(!showDatePicker)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-medium text-slate-700 shadow-2xs transition cursor-pointer"
             >
@@ -124,6 +125,7 @@ export const GovHeader: React.FC = () => {
                   '01 Jan 2019 - 30 Mar 2019 (Historical)',
                 ].map((item) => (
                   <button
+                    type="button"
                     key={item}
                     onClick={() => {
                       setDateRange(item);
@@ -144,6 +146,7 @@ export const GovHeader: React.FC = () => {
 
           {/* Search Icon Button */}
           <button
+            type="button"
             aria-label="Search cases"
             className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 transition shadow-2xs cursor-pointer"
           >
@@ -153,6 +156,7 @@ export const GovHeader: React.FC = () => {
           {/* Notifications Button with Red Counter Badge */}
           <div className="relative">
             <button
+              type="button"
               aria-label="Alerts and notifications"
               className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 transition shadow-2xs cursor-pointer"
             >
@@ -166,6 +170,7 @@ export const GovHeader: React.FC = () => {
           {/* User Profile Avatar with Role Switcher Dropdown */}
           <div className="relative pl-1 border-l border-slate-200">
             <button
+              type="button"
               onClick={() => setShowRoleMenu(!showRoleMenu)}
               className="flex items-center gap-2 group cursor-pointer focus:outline-none"
             >
@@ -211,9 +216,10 @@ export const GovHeader: React.FC = () => {
 
                     return (
                       <button
+                        type="button"
                         key={role.id}
                         onClick={() => {
-                          switchUser(role.id as any);
+                          switchUser(role.id);
                           setShowRoleMenu(false);
                         }}
                         className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between text-xs transition cursor-pointer ${

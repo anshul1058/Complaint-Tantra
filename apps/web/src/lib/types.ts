@@ -19,6 +19,7 @@ export interface AuthState {
 export type CaseStatus =
   | 'Received'
   | 'Under Process'
+  | 'UnderProcess'
   | 'Transferred'
   | 'Escalated'
   | 'Disposed'

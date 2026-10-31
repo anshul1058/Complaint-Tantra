@@ -49,11 +49,6 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     });
 
     if (res.status === 401) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('complaint_tantra_jwt');
-        localStorage.removeItem('complaint_tantra_user');
-        window.location.href = '/login';
-      }
       throw new Error('Unauthorized');
     }
 

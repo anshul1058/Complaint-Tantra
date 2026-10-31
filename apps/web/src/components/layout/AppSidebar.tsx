@@ -219,6 +219,7 @@ export const AppSidebar: React.FC<SidebarProps> = ({ className = '' }) => {
           </div>
 
           <button
+            type="button"
             onClick={logout}
             title="Sign Out"
             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"

@@ -93,6 +93,7 @@ export const TodoRemindersCard: React.FC<TodoRemindersCardProps> = ({ alerts }) 
             >
               <div className="flex items-start gap-2.5">
                 <button
+                  type="button"
                   onClick={() => toggleComplete(alt.id)}
                   className="mt-0.5 text-slate-300 hover:text-emerald-600 transition cursor-pointer"
                 >

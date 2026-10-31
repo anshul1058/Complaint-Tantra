@@ -69,6 +69,7 @@ export default function DashboardPage() {
       actionButton={
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={loadData}
             disabled={isRefreshing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"

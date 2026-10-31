@@ -50,6 +50,7 @@ function CaseDetailContent() {
   }, [caseId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCaseDetails();
   }, [loadCaseDetails]);
 

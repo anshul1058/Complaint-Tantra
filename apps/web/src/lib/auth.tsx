@@ -8,8 +8,8 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  login: (email: string, roleKey?: string) => Promise<boolean>;
-  switchUser: (roleKey: string) => void;
+  login: (email: string, roleKey?: string, password?: string) => Promise<boolean>;
+  switchUser: (roleKey: string) => Promise<void>;
   logout: () => void;
   hasRole: (allowedRoles: UserRole[]) => boolean;
 }
@@ -18,6 +18,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const TOKEN_KEY = 'complaint_tantra_jwt';
 const USER_KEY = 'complaint_tantra_user';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+const ROLE_EMAIL_MAP: Record<string, string> = {
+  officer: 'asha@rb.gov.in',
+  pgrcOfficer: 'ravi@pgrc.gov.in',
+  regional: 'meera@rb.gov.in',
+  senior: 'sharma@hq.gov.in',
+  authority: 'nair@hq.gov.in',
+  admin: 'admin@hq.gov.in',
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -42,29 +52,104 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return 'demo-jwt-token-rb-officer';
   });
 
-  const login = async (_email: string, roleKey = 'officer'): Promise<boolean> => {
+  const login = async (
+    email: string,
+    roleKey = 'officer',
+    password = 'demo123'
+  ): Promise<boolean> => {
+    // 1. Try real backend API login if available
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.access_token && data.user) {
+          const authUser: User = {
+            id: String(data.user.id),
+            name: data.user.name,
+            email: data.user.email,
+            role: data.user.role as UserRole,
+            bureau: data.user.bureau || 'RB',
+            region: data.user.region || 'North',
+            active: true,
+          };
+          setUser(authUser);
+          setToken(data.access_token);
+          try {
+            localStorage.setItem(USER_KEY, JSON.stringify(authUser));
+            localStorage.setItem(TOKEN_KEY, data.access_token);
+          } catch {
+            // ignore
+          }
+          return true;
+        }
+      }
+    } catch {
+      // Backend not reached, fall back to mock user
+    }
+
+    // 2. Fallback to mock demo user
     const selected = mockUsers[roleKey] || mockUsers.officer;
     setUser(selected);
-    const fakeToken = `demo-jwt-token-${selected.role}`;
-    setToken(fakeToken);
+    const fallbackToken = `demo-jwt-token-${selected.role}`;
+    setToken(fallbackToken);
     try {
       localStorage.setItem(USER_KEY, JSON.stringify(selected));
-      localStorage.setItem(TOKEN_KEY, fakeToken);
+      localStorage.setItem(TOKEN_KEY, fallbackToken);
     } catch {
       // ignore
     }
     return true;
   };
 
-  const switchUser = (roleKey: string) => {
+  const switchUser = async (roleKey: string) => {
+    const backendEmail = ROLE_EMAIL_MAP[roleKey];
+    if (backendEmail) {
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: backendEmail, password: 'demo123' }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.access_token && data.user) {
+            const authUser: User = {
+              id: String(data.user.id),
+              name: data.user.name,
+              email: data.user.email,
+              role: data.user.role as UserRole,
+              bureau: data.user.bureau || 'RB',
+              region: data.user.region || 'North',
+              active: true,
+            };
+            setUser(authUser);
+            setToken(data.access_token);
+            try {
+              localStorage.setItem(USER_KEY, JSON.stringify(authUser));
+              localStorage.setItem(TOKEN_KEY, data.access_token);
+            } catch {
+              // ignore
+            }
+            return;
+          }
+        }
+      } catch {
+        // Backend not reachable, fall back to mock user
+      }
+    }
+
     if (mockUsers[roleKey]) {
       const selected = mockUsers[roleKey];
       setUser(selected);
-      const fakeToken = `demo-jwt-token-${selected.role}`;
-      setToken(fakeToken);
+      const fallbackToken = `demo-jwt-token-${selected.role}`;
+      setToken(fallbackToken);
       try {
         localStorage.setItem(USER_KEY, JSON.stringify(selected));
-        localStorage.setItem(TOKEN_KEY, fakeToken);
+        localStorage.setItem(TOKEN_KEY, fallbackToken);
       } catch {
         // ignore
       }
@@ -79,6 +164,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem(TOKEN_KEY);
     } catch {
       // ignore
+    }
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
     }
   };
 

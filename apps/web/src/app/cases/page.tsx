@@ -30,6 +30,7 @@ export default function CasesListPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchFiltered();
   }, [bureau, status]);
 
@@ -52,6 +53,7 @@ export default function CasesListPage() {
       actionButton={
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={fetchFiltered}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition cursor-pointer"
           >

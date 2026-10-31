@@ -40,6 +40,7 @@ export const RegionHeatmap: React.FC<RegionHeatmapProps> = ({ data }) => {
           {['ALL', 'Northern', 'Western', 'Southern', 'Eastern', 'Central'].map(
             (r) => (
               <button
+                type="button"
                 key={r}
                 onClick={() => setSelectedRegion(r)}
                 className={`px-3 py-1 rounded-full transition cursor-pointer text-xs font-bold ${

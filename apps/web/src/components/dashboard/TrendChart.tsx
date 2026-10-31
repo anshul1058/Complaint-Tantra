@@ -54,7 +54,10 @@ export const TrendChart: React.FC = () => {
           </div>
 
           <div className="relative">
-            <button className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            >
               <span>{period}</span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>

@@ -26,6 +26,7 @@ export function statusColor(status: string): string {
   const map: Record<string, string> = {
     Received: "bg-blue-100 text-blue-800 border-blue-200",
     "Under Process": "bg-amber-100 text-amber-800 border-amber-200",
+    UnderProcess: "bg-amber-100 text-amber-800 border-amber-200",
     Transferred: "bg-purple-100 text-purple-800 border-purple-200",
     Escalated: "bg-red-100 text-red-800 border-red-200",
     Disposed: "bg-green-100 text-green-800 border-green-200",

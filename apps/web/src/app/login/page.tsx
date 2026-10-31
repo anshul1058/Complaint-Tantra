@@ -16,24 +16,31 @@ import {
 function LoginContent() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState('rakesh.rb@aicte-india.org');
+  const [email, setEmail] = useState('asha@rb.gov.in');
+  const [password, setPassword] = useState('demo123');
   const [selectedRoleKey, setSelectedRoleKey] = useState('officer');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await login(email, selectedRoleKey);
+    await login(email, selectedRoleKey, password);
     setTimeout(() => {
       router.push('/');
-    }, 400);
+    }, 300);
   };
 
   const handleRolePreset = (key: string) => {
     setSelectedRoleKey(key);
-    const userPreset = mockUsers[key];
-    if (userPreset) {
-      setEmail(userPreset.email);
+    const backendEmails: Record<string, string> = {
+      officer: 'asha@rb.gov.in',
+      pgrcOfficer: 'ravi@pgrc.gov.in',
+      senior: 'sharma@hq.gov.in',
+      authority: 'nair@hq.gov.in',
+    };
+    if (backendEmails[key]) {
+      setEmail(backendEmails[key]);
+      setPassword('demo123');
     }
   };
 
@@ -113,7 +120,8 @@ function LoginContent() {
                 <input
                   type="password"
                   required
-                  defaultValue="••••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] focus:border-transparent font-medium"
                 />
               </div>
