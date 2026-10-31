@@ -58,9 +58,13 @@ class CaseOut(BaseModel):
     case_no: str
     institution_id: uuid.UUID | None = None
     raw_institution: str | None = None
+    institution_name: str | None = None
+    institution_city: str | None = None
+    institution_state: str | None = None
     source_bureau: str
     assigned_bureau: str
     assigned_officer: uuid.UUID | None = None
+    assigned_officer_name: str | None = None
     complainant_type: str | None = None
     category: str | None = None
     subcategory: str | None = None
@@ -73,33 +77,42 @@ class CaseOut(BaseModel):
     last_action_at: datetime | None = None
     next_action: str | None = None
     criticality: str | None = None
+    criticality_reason: str | None = None
     emotion_label: str | None = None
     emotion_intensity: float | None = None
+    safety_flag: bool = False
+    safety_flag_reason: str | None = None
     priority_score: float | None = None
     priority_reasons: dict | None = None
     ai_summary: str | None = None
     ai_version: str | None = None
+    overlap_count: int = 0
     overdue: bool = False
     allowed_actions: list[str] = []
 
 
 class CaseRedactedOut(BaseModel):
-    """Cross-bureau overlap view: no text, no AI internals."""
+    """Cross-bureau overlap view: summary only, no raw text or AI internals."""
 
     id: uuid.UUID
     case_no: str
     institution_name: str | None = None
+    raw_institution: str | None = None
     category: str | None = None
     status: str
     assigned_bureau: str
     assigned_officer: uuid.UUID | None = None
+    assigned_officer_name: str | None = None
     officer_contact: str | None = None
+    summary: str | None = None
+    text_english: str | None = None
 
 
 class ActionOut(BaseModel):
     id: int
     case_id: uuid.UUID
     actor_id: uuid.UUID | None = None
+    actor_name: str | None = None
     actor_type: str
     action: str
     from_state: str | None = None
@@ -136,7 +149,11 @@ class LinkOut(BaseModel):
     evidence: dict | None = None
     detected_by: str | None = None
     decision: str
+    decided_by: uuid.UUID | None = None
+    decided_at: datetime | None = None
     other_case: CaseRedactedOut | None = None
+    case_a_details: CaseRedactedOut | None = None
+    case_b_details: CaseRedactedOut | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -185,7 +202,9 @@ class AlertOut(BaseModel):
     id: uuid.UUID
     kind: str
     case_id: uuid.UUID | None = None
+    case_no: str | None = None
     institution_id: uuid.UUID | None = None
+    institution_name: str | None = None
     severity: str | None = None
     message: str
     target_role: str | None = None
@@ -196,9 +215,16 @@ class AlertOut(BaseModel):
 
 class DashboardSummaryOut(BaseModel):
     total: int = 0
-    open: int = 0
+    pending: int = 0
+    under_process: int = 0
+    disposed: int = 0
+    transferred: int = 0
+    escalated: int = 0
+    reopened: int = 0
     overdue: int = 0
     due_soon: int = 0
+    safety_flagged: int = 0
+    open: int = 0
     by_status: dict[str, int] = {}
     by_bureau: dict[str, int] = {}
     avg_priority: float | None = None
@@ -206,13 +232,34 @@ class DashboardSummaryOut(BaseModel):
 
 class WorkloadRow(BaseModel):
     bureau: str
-    status: str
-    n: int
+    pending: int = 0
+    under_process: int = 0
+    disposed: int = 0
+    transferred: int = 0
+    escalated: int = 0
+    reopened: int = 0
+    overdue: int = 0
+    total: int = 0
 
 
 class HeatmapRow(BaseModel):
     region: str
-    n: int
+    state: str
+    count: int
+    overdue: int = 0
+    critical: int = 0
+
+
+class RiskOut(BaseModel):
+    institution_id: uuid.UUID
+    complaint_load: float | None = None
+    repeat_offender: float | None = None
+    web_reputation: float | None = None
+    overlap_density: float | None = None
+    risk_index: float | None = None
+    computed_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class QueueRow(CaseOut):

@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import io
 from datetime import datetime, timezone
@@ -49,12 +50,23 @@ async def _post_ingest(db: AsyncSession, case: Case) -> None:
     case.emotion_label = (triage.get("emotion") or {}).get("label") or case.emotion_label
     case.emotion_intensity = (triage.get("emotion") or {}).get("intensity") or case.emotion_intensity
 
+    from services.embeddings import embed_text
+
+    if case.text_embedding is None:
+        case.text_embedding = await asyncio.to_thread(
+            embed_text, case.text_english or case.text_original
+        )
+
     # Institution resolution (§5)
     if case.raw_institution and case.institution_id is None:
         inst, score = await resolve_institution(db, name=case.raw_institution)
         if inst is None and verdict(score) == "new":
             norm = normalize_name(case.raw_institution)
-            inst = Institution(name=case.raw_institution, name_normalized=norm)
+            inst = Institution(
+                name=case.raw_institution,
+                name_normalized=norm,
+                name_embedding=await asyncio.to_thread(embed_text, case.raw_institution),
+            )
             db.add(inst)
             await db.flush()
         elif inst is not None and score < 0.70:
@@ -82,13 +94,16 @@ async def _post_ingest(db: AsyncSession, case: Case) -> None:
         links=links,
         safety_flag=safety,
     )
+    reasons["criticality_reason"] = triage.get("criticality_reason")
+    reasons["safety_flag"] = safety
+    reasons["safety_flag_reason"] = triage.get("flag_reason")
     case.priority_score = score
     case.priority_reasons = reasons
     await db.commit()
 
     if safety:
         db.add(Alert(
-            kind="safety_flag",
+            kind="safety",
             case_id=case.id,
             institution_id=case.institution_id,
             severity="critical",

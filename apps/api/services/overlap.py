@@ -24,6 +24,16 @@ def _cosine(a, b) -> float:
         return 0.0
 
 
+def score_pair(inst_match: float, text_sim: float, cat_rel: float, t_ovl: float) -> float:
+    """Hybrid score from §5. Pure so it can be evaluated offline."""
+    return (
+        WEIGHTS["inst"] * inst_match
+        + WEIGHTS["text"] * text_sim
+        + WEIGHTS["cat"] * cat_rel
+        + WEIGHTS["time"] * t_ovl
+    )
+
+
 def assign_tier(score: float, text_sim: float, cat_rel: float, same_bureau: bool) -> str | None:
     if score >= 0.75 and cat_rel >= 0.9:
         return "T1"
@@ -61,12 +71,7 @@ async def detect_overlaps(db: AsyncSession, case: Case) -> list[CaseLink]:
         cat_rel = category_relatedness(case.category, cand.category)
         t_ovl = time_overlap(case.received_at, cand.received_at)
         inst_match = 1.0 if inst else 0.5  # institution already resolved to link them
-        score = (
-            WEIGHTS["inst"] * inst_match
-            + WEIGHTS["text"] * text_sim
-            + WEIGHTS["cat"] * cat_rel
-            + WEIGHTS["time"] * t_ovl
-        )
+        score = score_pair(inst_match, text_sim, cat_rel, t_ovl)
 
         # Gray zone → LLM judge (system.md §5, §6.4): blend score with judge confidence
         if GRAY_ZONE[0] <= score < GRAY_ZONE[1]:

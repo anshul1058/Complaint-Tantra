@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth import ROLE_AUTHORITY, ROLE_OFFICER, ROLE_REGIONAL, ROLE_SENIOR, get_current_user, require_roles
 from db import get_db
 from models import Case, Institution, InstitutionRisk, User, WebFinding
-from schemas import InstitutionProfileOut, IntelRefreshOut, WebFindingOut
+from schemas import InstitutionProfileOut, IntelRefreshOut, RiskOut, WebFindingOut
 
 router = APIRouter(prefix="/institutions", tags=["institutions"])
 
@@ -46,6 +46,22 @@ async def institution_profile(
     out.case_count = total
     out.open_count = open_n
     return out
+
+
+@router.get("/{institution_id}/risk", response_model=RiskOut)
+async def institution_risk(
+    institution_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> RiskOut:
+    if await db.get(Institution, institution_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Institution not found")
+    risk = await db.get(InstitutionRisk, institution_id)
+    if risk is None:
+        from services.risk import compute_risk
+
+        risk = await compute_risk(db, institution_id)
+    return RiskOut.model_validate(risk)
 
 
 @router.get("/{institution_id}/intel", response_model=list[WebFindingOut])
