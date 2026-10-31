@@ -1,0 +1,13 @@
+.git
+.venv
+.agents
+.claude
+.kilo
+**/node_modules
+**/.next
+**/__pycache__
+**/.pytest_cache
+.env
+.env*.local
+data/raw
+Docs_md
