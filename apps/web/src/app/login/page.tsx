@@ -51,12 +51,12 @@ function LoginContent() {
       {/* 2. Top Govt Bar */}
       <div className="bg-[#0b132b] text-slate-300 text-xs px-6 py-2 flex items-center justify-between border-b border-white/10">
         <div className="flex items-center gap-2">
-          <span className="text-amber-400 font-bold">भारत सरकार | GOVERNMENT OF INDIA</span>
+          <span className="text-amber-400 font-bold">GOVERNMENT OF INDIA</span>
           <span className="text-slate-500">•</span>
-          <span className="text-slate-300">शिक्षा मंत्रालय | Ministry of Education</span>
+          <span className="text-slate-300">Ministry of Education</span>
         </div>
         <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold">
-          <span>विकसित भारत @2047</span>
+          <span>Viksit Bharat @2047</span>
         </div>
       </div>
 
@@ -72,13 +72,13 @@ function LoginContent() {
             </div>
 
             <h2 className="text-xl font-bold font-serif tracking-wide text-white">
-              शिकायत-तंत्र
+              Complaint-Tantra
             </h2>
             <p className="text-xs font-sans text-amber-300 font-bold uppercase tracking-wider mt-0.5">
-              Complaint-Tantra Portal
+              Grievance Portal
             </p>
             <p className="text-[11px] text-slate-200 mt-1">
-              अखिल भारतीय तकनीकी शिक्षा परिषद (AICTE)
+              All India Council for Technical Education (AICTE)
             </p>
             <p className="text-[10px] text-slate-300">
               Integrated Complaint Monitoring & Inter-Bureau Overlap Tracking
@@ -89,7 +89,7 @@ function LoginContent() {
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Official Email ID / शासकीय ईमेल
+                Official Email ID
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -106,7 +106,7 @@ function LoginContent() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Password / गुप्त कूट
+                Password
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -156,7 +156,7 @@ function LoginContent() {
               className="w-full mt-2 py-2.5 px-4 bg-[#1E3A8A] hover:bg-[#1e40af] text-white font-bold rounded-md text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <ShieldCheck className="w-4 h-4 text-amber-400" />
-              {isLoading ? 'Authenticating with AICTE SSO...' : 'Sign In to Portal / प्रवेश करें'}
+              {isLoading ? 'Authenticating with AICTE SSO...' : 'Sign In to Portal'}
               <ArrowRight className="w-4 h-4" />
             </button>
 

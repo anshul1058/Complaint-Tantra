@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -48,7 +48,6 @@ export default function CasesListPage() {
   return (
     <AppLayout
       pageTitle="All Complaint Cases"
-      hindiTitle="समस्त शिकायत प्रकरण"
       actionButton={
         <div className="flex items-center gap-2">
           <button

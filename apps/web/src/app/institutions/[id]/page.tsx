@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
@@ -48,7 +48,6 @@ function Institution360Content() {
   return (
     <AppLayout
       pageTitle={`Institution 360°: ${inst.name}`}
-      hindiTitle="संस्थान 360° रूपरेखा"
       actionButton={
         <div className="flex items-center gap-2">
           <button

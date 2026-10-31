@@ -28,14 +28,12 @@ export const AppSidebar: React.FC<SidebarProps> = ({ className = '' }) => {
   const coreNav = [
     {
       label: 'Command Dashboard',
-      hindi: 'कमांड डैशबोर्ड',
       href: '/',
       icon: LayoutDashboard,
       roles: ['officer', 'regional', 'senior', 'authority', 'admin'] as const,
     },
     {
       label: 'Priority Queue',
-      hindi: 'प्राथमिकता कतार',
       href: '/queue',
       icon: ListOrdered,
       badge: 'Scored',
@@ -43,14 +41,12 @@ export const AppSidebar: React.FC<SidebarProps> = ({ className = '' }) => {
     },
     {
       label: 'Complaint Cases',
-      hindi: 'शिकायत मामले',
       href: '/cases',
       icon: FolderSearch,
       roles: ['officer', 'regional', 'senior', 'authority', 'admin'] as const,
     },
     {
       label: 'Overlap Room',
-      hindi: 'समन्वय कक्ष (T1-T3)',
       href: '/overlaps',
       icon: GitMerge,
       badge: 'T1 Active',
@@ -61,14 +57,12 @@ export const AppSidebar: React.FC<SidebarProps> = ({ className = '' }) => {
   const intelligenceNav = [
     {
       label: 'Institution 360°',
-      hindi: 'संस्थान रूपरेखा',
       href: '/institutions/inst-001',
       icon: Building2,
       roles: ['officer', 'regional', 'senior', 'authority', 'admin'] as const,
     },
     {
       label: 'Reports & Analytics',
-      hindi: 'रिपोर्ट और विश्लेषण',
       href: '/reports',
       icon: BarChart3,
       roles: ['senior', 'authority', 'admin'] as const, // Senior+ only per frontend-guide.md
@@ -115,12 +109,7 @@ export const AppSidebar: React.FC<SidebarProps> = ({ className = '' }) => {
                         isActive ? 'text-[#1E3A8A]' : 'text-slate-400 group-hover:text-slate-600'
                       }`}
                     />
-                    <div className="flex flex-col">
-                      <span className="leading-tight">{item.label}</span>
-                      <span className="text-[10px] text-slate-400 group-hover:text-slate-500">
-                        {item.hindi}
-                      </span>
-                    </div>
+                    <span className="leading-tight">{item.label}</span>
                   </div>
 
                   {item.badge && (
@@ -173,12 +162,7 @@ export const AppSidebar: React.FC<SidebarProps> = ({ className = '' }) => {
                         isActive ? 'text-[#1E3A8A]' : 'text-slate-400 group-hover:text-slate-600'
                       }`}
                     />
-                    <div className="flex flex-col">
-                      <span className="leading-tight">{item.label}</span>
-                      <span className="text-[10px] text-slate-400 group-hover:text-slate-500">
-                        {item.hindi}
-                      </span>
-                    </div>
+                    <span className="leading-tight">{item.label}</span>
                   </div>
                 </Link>
               );

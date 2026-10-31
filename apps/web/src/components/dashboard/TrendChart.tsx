@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -36,7 +36,7 @@ export const TrendChart: React.FC = () => {
             </h3>
           </div>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            मासिक शिकायत आवक एवं निस्तारण रुझान • Real-time AICTE Bureau Intake vs Resolution
+            Real-time AICTE Bureau Intake vs Resolution
           </p>
         </div>
 
@@ -45,11 +45,11 @@ export const TrendChart: React.FC = () => {
           <div className="flex items-center gap-3 font-semibold text-slate-600">
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#1E3A8A]" />
-              Received (आवक)
+              Received
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#0EA5E9]" />
-              Disposed (निस्तारित)
+              Disposed
             </span>
           </div>
 

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { PriorityReasons } from '@/lib/types';
@@ -70,7 +70,7 @@ export const PriorityBreakdown: React.FC<PriorityBreakdownProps> = ({
               AI Priority Score Breakdown (Score: {priorityScore.toFixed(1)}/100)
             </h3>
             <p className="text-xs text-slate-500">
-              एआई प्राथमिकता गणना एवं कारण (Explainable Multi-Factor Formula)
+              Explainable Multi-Factor Formula
             </p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { RegionHeatmapData } from '@/lib/types';
@@ -30,7 +30,7 @@ export const RegionHeatmap: React.FC<RegionHeatmapProps> = ({ data }) => {
               National Grievance Density & Regional Offices (ROs)
             </h3>
             <p className="text-xs text-slate-500 font-medium">
-              अखिल भारतीय क्षेत्रीय वितरण • Geo-Locus Scrutiny & Inflow
+              Geo-Locus Scrutiny & Inflow
             </p>
           </div>
         </div>

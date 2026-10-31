@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -41,7 +41,6 @@ export default function OverlapRoomPage() {
   return (
     <AppLayout
       pageTitle="Inter-Bureau Overlap Coordination Room"
-      hindiTitle="अंतर-ब्यूरो अतिव्याप्ति समन्वय कक्ष"
       actionButton={
         <div className="flex items-center gap-1.5 bg-purple-100 text-purple-900 px-3 py-1.5 rounded border border-purple-300 text-xs font-bold">
           <GitMerge className="w-4 h-4 text-purple-700" />
@@ -279,7 +278,7 @@ export default function OverlapRoomPage() {
                       }`}
                     >
                       <Check className="w-3.5 h-3.5" />
-                      Confirm Overlap (सहमति)
+                      Confirm Overlap
                     </button>
 
                     <button
