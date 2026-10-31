@@ -69,8 +69,23 @@ def briefing_agent(state: CaseState):
     return {"brief": out, "needs_review": needs}
 
 
+class _FallbackGraph:
+    """Sequential offline runner used when langgraph is not installed (aiml-guide offline path)."""
+
+    nodes = (intake_agent, triage_agent, overlap_agent, web_intel_agent, briefing_agent)
+
+    def invoke(self, state: CaseState) -> CaseState:
+        out: CaseState = dict(state)
+        for node in self.nodes:
+            out.update(node(out))
+        return out
+
+
 def build_graph():
-    from langgraph.graph import END, StateGraph
+    try:
+        from langgraph.graph import END, StateGraph
+    except ImportError:
+        return _FallbackGraph()
 
     g = StateGraph(CaseState)
     g.add_node("intake", intake_agent)

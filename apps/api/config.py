@@ -1,9 +1,13 @@
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# Agents (LiteLLM, Tavily) read os.getenv directly; make .env visible to them too.
+load_dotenv(REPO_ROOT / ".env", override=False)
 
 
 class Settings(BaseSettings):
@@ -18,7 +22,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = ""
     ollama_base_url: str = "http://localhost:11434"
-    embedding_model: str = "bge-m3"
+    embedding_model: str = "BAAI/bge-m3"
 
     stuck_days: int = 7
 

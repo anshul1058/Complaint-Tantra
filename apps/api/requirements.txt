@@ -14,5 +14,4 @@ numpy>=2.0
 litellm>=1.40
 langgraph>=0.2
 pydantic>=2.8
-rapidfuzz>=3.9
 sentence-transformers>=3.0
