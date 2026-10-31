@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 import subprocess
 import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+SCRIPTS = ["eval_institutions.py", "eval_triage.py", "eval_overlap.py"]
 
 
-def main():
-    for script in ["eval_institutions.py", "eval_triage.py", "eval_overlap.py"]:
-        try:
-            subprocess.run([sys.executable, script], check=False)
-        except Exception as e:
-            print(e)
-    print("done")
+def main() -> int:
+    failures = []
+    for script in SCRIPTS:
+        print(f"\n=== {script} ===", flush=True)
+        result = subprocess.run([sys.executable, str(HERE / script)], check=False)
+        if result.returncode != 0:
+            failures.append(script)
+    print("\ndone")
+    if failures:
+        print("failed:", ", ".join(failures))
+        return 1
     return 0
 
 
