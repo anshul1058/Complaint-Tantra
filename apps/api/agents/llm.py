@@ -5,9 +5,11 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from services.pii import mask_pii
+
 
 def get_provider() -> str:
-    return os.getenv("LLM_PROVIDER", "ollama").lower()
+    return os.getenv("LLM_PROVIDER", "none").lower()
 
 
 class LLMConfig:
@@ -52,17 +54,30 @@ def _build_litellm_kwargs(prompt: str, schema: type[BaseModel] | None = None) ->
 
 def complete_json(prompt: str, schema: type[BaseModel] | None = None, model: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
     t0 = time.time()
+    if CONFIG.provider == "none":
+        raise RuntimeError("LLM_PROVIDER=none")
+    prompt = mask_pii(prompt)
     try:
         import litellm  # type: ignore
-
-        kwargs = _build_litellm_kwargs(prompt, schema)
-        if model:
-            kwargs["model"] = model
-        resp = litellm.completion(**kwargs)
-        content = resp.choices[0].message.content or "{}"
     except Exception:
-        # Offline/fallback path per aiml-guide
         raise
+
+    kwargs = _build_litellm_kwargs(prompt, schema)
+    if model:
+        kwargs["model"] = model
+    resp = None
+    last_error: Exception | None = None
+    for attempt in range(2):
+        try:
+            resp = litellm.completion(**kwargs)
+            break
+        except Exception as exc:
+            last_error = exc
+            if attempt == 0:
+                time.sleep(0.5)
+    if resp is None:
+        raise last_error or RuntimeError("LLM call failed")
+    content = resp.choices[0].message.content or "{}"
 
     try:
         data = json.loads(content)

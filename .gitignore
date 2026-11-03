@@ -35,6 +35,9 @@ Thumbs.db
 # local notes
 thinking-log.md
 
+# user uploads (local disk demo storage)
+data/uploads/
+
 # scraped source dumps (rebuild via scripts/build_institutions_csv.py)
 data/raw/
 

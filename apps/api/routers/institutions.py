@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -75,10 +75,30 @@ async def institution_intel(
     # match_confidence < 0.6 hidden by default (§6.5 guardrails)
     rows = (await db.execute(
         select(WebFinding)
-        .where(WebFinding.institution_id == institution_id)
+        .where(
+            WebFinding.institution_id == institution_id,
+            WebFinding.dismissed_at.is_(None),
+        )
         .order_by(WebFinding.retrieved_at.desc())
     )).scalars().all()
     return [WebFindingOut.model_validate(f) for f in rows if (f.match_confidence or 0) >= 0.6]
+
+
+@router.post("/{institution_id}/intel/{finding_id}/dismiss", status_code=status.HTTP_204_NO_CONTENT)
+async def dismiss_finding(
+    institution_id: uuid.UUID,
+    finding_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User, Depends(require_roles(ROLE_OFFICER, ROLE_REGIONAL, ROLE_SENIOR, ROLE_AUTHORITY))],
+) -> None:
+    finding = await db.get(WebFinding, finding_id)
+    if finding is None or finding.institution_id != institution_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Finding not found")
+    from datetime import datetime, timezone
+
+    finding.dismissed_at = datetime.now(timezone.utc)
+    finding.dismissed_by = user.id
+    await db.commit()
 
 
 @router.post("/{institution_id}/intel/refresh", response_model=IntelRefreshOut)
@@ -86,13 +106,14 @@ async def refresh_intel(
     institution_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[User, Depends(require_roles(ROLE_OFFICER, ROLE_REGIONAL, ROLE_SENIOR, ROLE_AUTHORITY))],
+    force: bool = Query(False),
 ) -> IntelRefreshOut:
     if await db.get(Institution, institution_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Institution not found")
     try:
         from agents.web_intel import refresh as web_refresh
 
-        return await web_refresh(db, institution_id)
+        return await web_refresh(db, institution_id, force=force)
     except ImportError:
         return IntelRefreshOut(
             detail="Web intelligence agent not installed yet (AI member scope)",

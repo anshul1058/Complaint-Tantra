@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AuthProvider, useAuth } from '@/lib/auth';
-import { mockUsers } from '@/lib/mock/data';
+import { useAuth } from '@/lib/auth';
 import {
   Building2,
   Lock,
@@ -20,14 +19,19 @@ function LoginContent() {
   const [password, setPassword] = useState('demo123');
   const [selectedRoleKey, setSelectedRoleKey] = useState('officer');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await login(email, selectedRoleKey, password);
-    setTimeout(() => {
-      router.push('/');
-    }, 300);
+    setError('');
+    const ok = await login(email, selectedRoleKey, password);
+    setIsLoading(false);
+    if (!ok) {
+      setError('Login failed. Check credentials or that the API is running.');
+      return;
+    }
+    router.push('/');
   };
 
   const handleRolePreset = (key: string) => {
@@ -35,8 +39,10 @@ function LoginContent() {
     const backendEmails: Record<string, string> = {
       officer: 'asha@rb.gov.in',
       pgrcOfficer: 'ravi@pgrc.gov.in',
+      regional: 'meera@rb.gov.in',
       senior: 'sharma@hq.gov.in',
       authority: 'nair@hq.gov.in',
+      admin: 'admin@hq.gov.in',
     };
     if (backendEmails[key]) {
       setEmail(backendEmails[key]);
@@ -138,8 +144,10 @@ function LoginContent() {
                 {[
                   { key: 'officer', label: 'RB Officer', name: 'Rakesh Sharma' },
                   { key: 'pgrcOfficer', label: 'PGRC Officer', name: 'Meera Deshmukh' },
+                  { key: 'regional', label: 'Regional Officer', name: 'Meera Deshmukh' },
                   { key: 'senior', label: 'Senior Mgmt', name: 'Dr. Abhay Jere' },
                   { key: 'authority', label: 'Chairman AICTE', name: 'Prof. T. G. Sitharam' },
+                  { key: 'admin', label: 'Admin', name: 'System Admin' },
                 ].map((item) => (
                   <button
                     type="button"
@@ -157,6 +165,12 @@ function LoginContent() {
                 ))}
               </div>
             </div>
+
+            {error && (
+              <p className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+                {error}
+              </p>
+            )}
 
             <button
               type="submit"

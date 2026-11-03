@@ -59,9 +59,13 @@ Complaint-Tantra/
 │   │   │   ├── cases.py            # /cases, /cases/{id}, actions, links, queue
 │   │   │   ├── institutions.py     # profile, risk, web intel, refresh
 │   │   │   ├── dashboard.py        # summary, workload, heatmap
-│   │   │   ├── alerts.py           # scoped alert feed
-│   │   │   ├── reports.py          # JSON/CSV reports
-│   │   │   ├── agents.py           # replay endpoint
+│   │   │   ├── alerts.py           # feed, acknowledge/snooze, digest
+│   │   │   ├── reports.py          # JSON/CSV/PDF reports
+│   │   │   ├── agents.py           # replay + institution dossier
+│   │   │   ├── admin.py            # users, SLA, weights, audit
+│   │   │   ├── attachments.py      # case document upload/download
+│   │   │   ├── filters.py          # saved filters
+│   │   │   ├── ws.py               # /ws/events live updates
 │   │   │   └── meta.py             # statuses, transitions, categories, roles
 │   │   ├── services/
 │   │   │   ├── state_machine.py    # statuses + validated transitions
@@ -96,10 +100,10 @@ Complaint-Tantra/
 │       │   ├── reports/page.tsx
 │       │   └── login/page.tsx
 │       ├── src/components/         # dashboard, case, layout and UI primitives
-│       ├── src/lib/api/client.ts   # typed API wrapper + auth header
+│       ├── src/lib/api/client.ts   # typed API wrapper + auth header (+ report exports)
 │       ├── src/lib/auth.tsx        # JWT login, role switching, session state
 │       ├── src/lib/types.ts        # frontend contract types
-│       └── src/lib/mock/data.ts    # dev-only fallback used when API is offline
+│       └── src/lib/empty.ts        # empty shells; all data comes from the API
 │
 ├── data/
 │   ├── institutions.csv            # cleaned AICTE institution master (~13k rows)
@@ -159,7 +163,16 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 AI keys are optional. With `LLM_PROVIDER=none` (or no LLM running) the system uses deterministic rules and still works end to end.
 
-Embeddings use **BAAI/bge-m3**, loaded lazily on the first ingest; that first call downloads ~2 GB. Set `EMBEDDING_BACKEND=hash` for offline/CI runs or when the model is not cached.
+Embeddings use **BAAI/bge-m3**, loaded lazily on the first ingest; that first call downloads ~2 GB. Sentiment uses **XLM-RoBERTa** (`cardiffnlp/twitter-xlm-roberta-base-sentiment`) as the cheap first pass. Set `EMBEDDING_BACKEND=hash` / `SENTIMENT_BACKEND=rules` for offline/CI runs.
+
+Download and verify the models, then backfill existing rows:
+
+```bash
+.venv/bin/python scripts/setup_models.py --all
+.venv/bin/python scripts/backfill_embeddings.py
+```
+
+Run `ollama pull llama3.2:3b` for the documented local LLM path (`LLM_PROVIDER=ollama`).
 
 ### 3. Backend
 
@@ -185,7 +198,7 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>. The frontend falls back to local mock data if the API is unreachable, so it renders even before the backend is up.
+Open <http://localhost:3000>. The frontend is API-only (no mock fallback); start the backend and seed demo users before logging in.
 
 ### Demo accounts
 
@@ -230,7 +243,8 @@ The backend needs a reachable PostgreSQL instance (local, Docker network, or Sup
 | GET | `/auth/me` | current user |
 | POST | `/ingest/cases` | single or bulk JSON ingest |
 | POST | `/ingest/cases/csv` | CSV ingest |
-| GET | `/cases` | search + filters (bureau, status, category, region, date, priority sort) |
+| POST | `/ingest/cases/xlsx` | Excel (.xlsx) ingest |
+| GET | `/cases` | search + filters (bureau, status, category, region, date, Permanent ID, priority sort) |
 | GET | `/cases/{id}` | dossier + timeline + brief |
 | GET | `/cases/{id}/actions` | append-only action log |
 | POST | `/cases/{id}/actions` | remark / assign / transfer / escalate / dispose / reopen |
@@ -242,13 +256,26 @@ The backend needs a reachable PostgreSQL instance (local, Docker network, or Sup
 | GET | `/institutions/{id}` | profile + history + risk |
 | GET | `/institutions/{id}/risk` | risk index breakdown |
 | GET | `/institutions/{id}/intel` | cited web findings |
-| POST | `/institutions/{id}/intel/refresh` | re-run web intelligence |
+| POST | `/institutions/{id}/intel/refresh` | re-run web intelligence (`?force=true` bypasses 24h cache) |
+| POST | `/institutions/{id}/intel/{finding_id}/dismiss` | dismiss a finding |
 | GET | `/dashboard/summary` | KPI counts |
 | GET | `/dashboard/workload` | bureau workload |
 | GET | `/dashboard/heatmap` | region/state density |
 | GET | `/alerts` | scoped alert feed |
-| GET | `/reports/{type}` | institution / bureau / region / ageing / disposal (`json` or `csv`) |
+| POST | `/alerts/{id}/acknowledge` | acknowledge an alert |
+| POST | `/alerts/{id}/snooze` | snooze (hours) |
+| GET | `/alerts/digest` | daily operational digest |
+| GET | `/saved-filters` | per-user saved filters |
+| POST | `/cases/{id}/attachments` | upload case document (≤10 MB) |
+| GET | `/cases/{id}/attachments/{aid}/download` | download document |
+| GET | `/reports/{type}` | institution / bureau / region / ageing / disposal / status / duplicates / performance / monthly (`json`, `csv`, `pdf`) |
 | POST | `/agents/replay/{case_id}` | re-run agents for reproducibility |
+| GET | `/agents/dossiers/{institution_id}` | institution dossier narrative + facts |
+| GET | `/admin/users` | user management (admin) |
+| GET/PUT | `/admin/sla/{category}` | SLA thresholds (admin) |
+| GET/PUT | `/admin/weights` | scoring weights (admin) |
+| GET | `/admin/audit` | login/view audit trail (admin) |
+| WS | `/ws/events` | live case/alert events (`?token=JWT`) |
 | GET | `/meta/options` | statuses, transitions, categories, roles |
 
 ---
@@ -256,12 +283,12 @@ The backend needs a reachable PostgreSQL instance (local, Docker network, or Sup
 ## AI/ML pipeline
 
 1. **Intake agent** (`agents/ai_member.py`, prompt `prompts/v1/intake.md`) — language detection, English translation, category/subcategory, entities, neutral summary.
-2. **Triage agent** (prompt `prompts/v1/triage.md`) — criticality C1–C4, emotion label + intensity, safety flag and urgency cues.
+2. **Triage agent** (prompt `prompts/v1/triage.md`) — criticality C1–C4, emotion label + intensity, safety flag and urgency cues. XLM-RoBERTa sentiment runs as the cheap first pass when the LLM is unavailable.
 3. **Priority score** (`services/priority.py`) — deterministic formula:
    `0.35·criticality + 0.20·emotion + 0.25·time_pressure + 0.10·risk + 0.10·overlap`, safety flags bypass to 100.
-4. **Institution resolution** (`services/entity_resolution.py`) — normalization + token-set fuzzy matching; ≥0.90 auto-link, 0.70–0.90 needs confirmation.
+4. **Institution resolution** (`services/entity_resolution.py`) — rapidfuzz token-set + BGE-M3 name cosine + address/state; ≥0.90 auto-link, 0.70–0.90 needs confirmation.
 5. **Overlap detection** (`services/overlap.py`) — `0.40·institution + 0.30·text cosine + 0.15·category + 0.15·time`; T1/T2/T3 tiers; gray zone 0.45–0.70 can call the LLM judge.
-6. **Web intelligence** (`agents/web_intel.py`) — Tavily search when `TAVILY_API_KEY` is set, fixtures for offline demos, same-institution guard, every finding needs a URL and date.
+6. **Web intelligence** (`agents/web_intel.py`) — Tavily / Brave / GDELT / Google News RSS fallback, 24-hour cache, trafilatura article text, XLM-RoBERTa sentiment, same-institution guard and up to 3 query-refinement rounds; every finding needs a URL and date.
 7. **Risk index** (`services/risk.py`) — complaint load, repeat offenders, negative web coverage and overlap density.
 8. **Briefing** (`agents/briefing.py`) — narrative only; SQL supplies all numbers.
 
@@ -278,7 +305,7 @@ python eval/run_all.py
 Latest results on the bundled data:
 
 ```
-institution matching: P=0.991 R=0.924 F1=0.957   (target P>=0.95, R>=0.90)  PASS
+institution matching: P=0.992 R=1.000 F1=0.996   (target P>=0.95, R>=0.90)  PASS
 triage: accuracy=0.846 macro-F1=0.837 safety-recall=1.000                  PASS
 overlap: T1 F1=1.000, T2 F1=1.000                                          PASS
 ```

@@ -1,7 +1,9 @@
+import asyncio
 import json
 import os
 import re
 import uuid
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -64,6 +66,16 @@ def _classify(text: str) -> dict:
     pos = sum(1 for w in POSITIVE_KEYWORDS if w in t)
     sentiment = "negative" if neg > pos else "positive" if pos > neg else "neutral"
     severity = min(1.0, 0.35 + 0.15 * neg) if sentiment == "negative" else 0.05
+
+    from services.sentiment import analyze_sentiment
+
+    model_sent = analyze_sentiment(text)
+    if model_sent:
+        sentiment = model_sent["label"]
+        if sentiment == "negative":
+            severity = max(severity, model_sent["score"])
+        elif sentiment == "positive":
+            severity = 0.05
     return {"topic": topic, "sentiment": sentiment, "severity": round(severity, 2)}
 
 
@@ -95,6 +107,101 @@ def _tavily_search(query: str, max_results: int = MAX_RESULTS_PER_QUERY) -> list
         return []
 
 
+def _brave_search(query: str, max_results: int = MAX_RESULTS_PER_QUERY) -> list[dict]:
+    import urllib.parse
+    import urllib.request
+
+    api_key = os.getenv("BRAVE_API_KEY")
+    if not api_key:
+        return []
+    url = "https://api.search.brave.com/res/v1/web/search?" + urllib.parse.urlencode(
+        {"q": query, "count": max_results}
+    )
+    req = urllib.request.Request(
+        url, headers={"Accept": "application/json", "X-Subscription-Token": api_key}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+        return [
+            {
+                "url": r.get("url"),
+                "title": r.get("title"),
+                "content": r.get("description") or r.get("title"),
+                "published_date": r.get("age"),
+            }
+            for r in (data.get("web", {}).get("results") or [])
+        ]
+    except Exception:
+        return []
+
+
+def _gdelt_search(query: str, max_results: int = MAX_RESULTS_PER_QUERY) -> list[dict]:
+    """Free, keyless news index used when no paid search key is configured."""
+    import urllib.parse
+    import urllib.request
+
+    url = "https://api.gdeltproject.org/api/v2/doc/doc?" + urllib.parse.urlencode(
+        {"query": query, "mode": "artlist", "format": "json",
+         "maxrecords": max_results, "timespan": "18m"}
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception:
+        return []
+    return [
+        {
+            "url": a.get("url"),
+            "title": a.get("title"),
+            "content": a.get("title"),
+            "published_date": a.get("seendate"),
+        }
+        for a in (data.get("articles") or [])
+    ]
+
+
+def _fetch_article(url: str) -> str | None:
+    """Full article text via trafilatura when available (system.md §6.5)."""
+    try:
+        import trafilatura
+
+        downloaded = trafilatura.fetch_url(url)
+        return trafilatura.extract(downloaded) if downloaded else None
+    except Exception:
+        return None
+
+
+def _google_news(query: str) -> list[dict]:
+    """Free fallback search: Google News RSS, no API key (aiml-guide §7)."""
+    import urllib.parse
+    import urllib.request
+    import xml.etree.ElementTree as ET
+
+    url = (
+        "https://news.google.com/rss/search?q="
+        + urllib.parse.quote(query)
+        + "&hl=en-IN&gl=IN&ceid=IN:en"
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            root = ET.fromstring(resp.read())
+    except Exception:
+        return []
+    out = []
+    for item in root.iter("item"):
+        link = (item.findtext("link") or "").strip()
+        title = (item.findtext("title") or "").strip()
+        if link and title:
+            out.append({
+                "url": link,
+                "title": title,
+                "content": item.findtext("description") or title,
+                "published_date": item.findtext("pubDate"),
+            })
+    return out
+
+
 def _search_queries(inst: dict) -> list[str]:
     name = inst.get("name") or inst.get("name_normalized") or ""
     city = inst.get("city") or ""
@@ -110,36 +217,61 @@ def _search_queries(inst: dict) -> list[str]:
     return queries
 
 
+def _search(query: str) -> list[dict]:
+    return (
+        _tavily_search(query)
+        or _brave_search(query)
+        or _gdelt_search(query)
+        or _google_news(query)
+    )
+
+
 def _live_intel(inst: dict) -> dict | None:
+    if not any(os.getenv(k) for k in ("TAVILY_API_KEY", "BRAVE_API_KEY")) and os.getenv(
+        "WEB_INTEL_LIVE", "0"
+    ) != "1":
+        return None
+    name = inst.get("name") or ""
+    state = inst.get("state") or ""
     queries = _search_queries(inst)
     seen: set[str] = set()
     findings: list[dict] = []
-    for query in queries:
-        for result in _tavily_search(query):
-            url = result.get("url")
-            if not url or url in seen:
-                continue
-            seen.add(url)
+    for _round in range(3):
+        for query in queries:
+            for result in _search(query):
+                url = result.get("url")
+                if not url or url in seen:
+                    continue
+                seen.add(url)
+                if len(findings) >= MAX_FETCHES:
+                    break
+                conf = _same_institution(inst.get("name", ""), inst.get("city", ""), result)
+                if conf < 0.6:
+                    continue
+                text = f"{result.get('title') or ''} {result.get('content') or ''}"
+                if len(text) < 400:
+                    text = f"{text} {_fetch_article(url) or ''}".strip()
+                cls = _classify(text)
+                findings.append({
+                    "url": url,
+                    "title": result.get("title"),
+                    "source_name": urlparse(url).netloc,
+                    "published_at": result.get("published_date"),
+                    "summary": (result.get("content") or "")[:500] or None,
+                    "topic": cls["topic"],
+                    "sentiment": cls["sentiment"],
+                    "severity": cls["severity"],
+                    "match_confidence": round(conf, 2),
+                })
             if len(findings) >= MAX_FETCHES:
                 break
-            conf = _same_institution(inst.get("name", ""), inst.get("city", ""), result)
-            if conf < 0.6:
-                continue
-            text = f"{result.get('title') or ''} {result.get('content') or ''}"
-            cls = _classify(text)
-            findings.append({
-                "url": url,
-                "title": result.get("title"),
-                "source_name": urlparse(url).netloc,
-                "published_at": result.get("published_date"),
-                "summary": (result.get("content") or "")[:500] or None,
-                "topic": cls["topic"],
-                "sentiment": cls["sentiment"],
-                "severity": cls["severity"],
-                "match_confidence": round(conf, 2),
-            })
-        if len(findings) >= MAX_FETCHES:
+        if findings:
             break
+        queries = [
+            f"{name} {state} news",
+            f"{name} court fee ragging",
+            f"{name} AICTE UGC action",
+        ]
     if not findings:
         return None
     negative = [f for f in findings if f["sentiment"] == "negative"]
@@ -174,7 +306,9 @@ def run_web_intel(institution: dict, cached: bool = True) -> dict:
         if data is not None:
             return data
 
-    if os.getenv("TAVILY_API_KEY"):
+    if any(os.getenv(k) for k in ("TAVILY_API_KEY", "BRAVE_API_KEY")) or os.getenv(
+        "WEB_INTEL_LIVE", "0"
+    ) == "1":
         data = _live_intel(institution)
         if data is not None:
             return data
@@ -198,7 +332,7 @@ def run_web_intel(institution: dict, cached: bool = True) -> dict:
         }
 
 
-async def refresh(db: AsyncSession, institution_id: uuid.UUID) -> dict:
+async def refresh(db: AsyncSession, institution_id: uuid.UUID, force: bool = False) -> dict:
     """Called by POST /institutions/{id}/intel/refresh (routers/institutions.py).
 
     Runs web intel for the institution and persists findings into web_findings.
@@ -212,6 +346,19 @@ async def refresh(db: AsyncSession, institution_id: uuid.UUID) -> dict:
     if inst is None:
         return {"findings_created": 0, "reputation_risk": None, "needs_review": True, "detail": "institution not found"}
 
+    if not force:
+        latest = (await db.execute(
+            select(WebFinding.retrieved_at)
+            .where(WebFinding.institution_id == institution_id)
+            .order_by(WebFinding.retrieved_at.desc())
+            .limit(1)
+        )).scalar()
+        if latest:
+            age = (datetime.now(latest.tzinfo) - latest).total_seconds()
+            if age < 86400:
+                return {"findings_created": 0, "reputation_risk": None,
+                        "needs_review": False, "detail": "cached (<24h)"}
+
     inst_dict = {
         "id": str(inst.id),
         "name": inst.name,
@@ -220,7 +367,7 @@ async def refresh(db: AsyncSession, institution_id: uuid.UUID) -> dict:
         "state": inst.state,
         "permanent_id": inst.permanent_id,
     }
-    out = run_web_intel(inst_dict, cached=True)
+    out = await asyncio.to_thread(run_web_intel, inst_dict, True)
 
     created = 0
     for f in out.get("findings", []):

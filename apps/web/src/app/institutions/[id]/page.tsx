@@ -4,9 +4,9 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { getInstitution, getInstitutionRisk, getInstitutionIntel } from '@/lib/api/client';
-import { Institution, InstitutionRisk, WebFinding } from '@/lib/types';
-import { mockInstitutions, mockInstitutionRisks, mockWebFindings, mockCases } from '@/lib/mock/data';
+import { getCases, getInstitution, getInstitutionRisk, getInstitutionIntel, refreshInstitutionIntel } from '@/lib/api/client';
+import { Case, Institution, InstitutionRisk, WebFinding } from '@/lib/types';
+import { emptyInstitution, emptyRisk } from '@/lib/empty';
 import { formatDate } from '@/lib/utils';
 import {
   Building2,
@@ -21,29 +21,29 @@ function Institution360Content() {
   const params = useParams();
   const instId = (params?.id as string) || 'inst-001';
 
-  const [inst, setInst] = useState<Institution>(mockInstitutions[0]);
-  const [risk, setRisk] = useState<InstitutionRisk>(mockInstitutionRisks['inst-001']);
-  const [intel, setIntel] = useState<WebFinding[]>(mockWebFindings);
+  const [inst, setInst] = useState<Institution>(emptyInstitution);
+  const [risk, setRisk] = useState<InstitutionRisk>(emptyRisk);
+  const [intel, setIntel] = useState<WebFinding[]>([]);
   const [activeTab, setActiveTab] = useState<'intel' | 'history' | 'risk'>('intel');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [instCases, setInstCases] = useState<Case[]>([]);
 
   useEffect(() => {
-    getInstitution(instId).then((res) => res && setInst(res));
-    getInstitutionRisk(instId).then((res) => res && setRisk(res));
-    getInstitutionIntel(instId).then(setIntel);
+    getInstitution(instId).then((res) => res && setInst(res)).catch(() => {});
+    getInstitutionRisk(instId).then((res) => res && setRisk(res)).catch(() => {});
+    getInstitutionIntel(instId).then(setIntel).catch(() => setIntel([]));
+    getCases({ institution: instId }).then(setInstCases).catch(() => setInstCases([]));
   }, [instId]);
 
-  const handleRefreshIntel = () => {
+  const handleRefreshIntel = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
+    try {
+      await refreshInstitutionIntel(instId);
+      setIntel(await getInstitutionIntel(instId));
+    } finally {
       setIsRefreshing(false);
-      alert('Web Intelligence Agent crawled news & public notices. 4 findings verified.');
-    }, 800);
+    }
   };
-
-  const instCases = mockCases.filter(
-    (c) => c.institution_id === instId || c.institution_id === 'inst-001'
-  );
 
   return (
     <AppLayout
@@ -99,7 +99,7 @@ function Institution360Content() {
                 INSTITUTION RISK INDEX
               </span>
               <span className="text-2xl font-extrabold text-red-700">
-                {risk.risk_index.toFixed(1)} / 100
+                {(risk.risk_index ?? 0).toFixed(1)} / 100
               </span>
               <span className="text-[10px] text-red-600 font-semibold block">
                 High Regulatory Risk

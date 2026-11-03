@@ -9,7 +9,7 @@ import { StatusTimeline } from '@/components/cases/StatusTimeline';
 import { OverlapBanner } from '@/components/cases/OverlapBanner';
 import { getCase, getCaseActions, getCaseOverlaps, postCaseAction } from '@/lib/api/client';
 import { Case, CaseAction, CaseLink } from '@/lib/types';
-import { mockCases, mockCaseActions, mockCaseLinks } from '@/lib/mock/data';
+import { emptyCase } from '@/lib/empty';
 import { formatDate, statusColor } from '@/lib/utils';
 import {
   Building2,
@@ -28,9 +28,9 @@ function CaseDetailContent() {
   const params = useParams();
   const caseId = (params?.id as string) || 'case-001';
 
-  const [caseData, setCaseData] = useState<Case>(mockCases[0]);
-  const [actions, setActions] = useState<CaseAction[]>(mockCaseActions);
-  const [overlaps, setOverlaps] = useState<CaseLink[]>(mockCaseLinks);
+  const [caseData, setCaseData] = useState<Case>(emptyCase);
+  const [actions, setActions] = useState<CaseAction[]>([]);
+  const [overlaps, setOverlaps] = useState<CaseLink[]>([]);
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -171,7 +171,7 @@ function CaseDetailContent() {
                 PRIORITY SCORE
               </span>
               <span className="font-extrabold text-base text-[#1E3A8A]">
-                {caseData.priority_score.toFixed(1)}
+                {(caseData.priority_score ?? 0).toFixed(1)}
               </span>
             </div>
           </div>

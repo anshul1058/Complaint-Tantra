@@ -1,17 +1,41 @@
+import json
+import logging
+import time
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from db import init_db
-from routers import agents, alerts, auth, cases, dashboard, institutions, ingest, meta, reports
+from db import SessionLocal, init_db
+from routers import (
+    admin,
+    agents,
+    alerts,
+    attachments,
+    auth,
+    cases,
+    dashboard,
+    filters,
+    ingest,
+    institutions,
+    meta,
+    reports,
+    ws,
+)
 from workers.scheduler import start_scheduler, stop_scheduler
+
+logger = logging.getLogger("complaint_tantra")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    from services.scoring_config import load as load_weights
+
+    async with SessionLocal() as db:
+        await load_weights(db)
     start_scheduler()
     yield
     stop_scheduler()
@@ -27,7 +51,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth, meta, ingest, cases, institutions, dashboard, alerts, reports, agents):
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
+    started = time.time()
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    logger.info(json.dumps({
+        "request_id": request_id,
+        "method": request.method,
+        "path": request.url.path,
+        "status": response.status_code,
+        "latency_ms": int((time.time() - started) * 1000),
+    }))
+    return response
+
+
+for r in (auth, meta, ingest, cases, institutions, dashboard, alerts, reports, agents,
+          admin, filters, attachments, ws):
     app.include_router(r.router)
 
 

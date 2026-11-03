@@ -4,6 +4,7 @@ Each tries the AI member's implementation first; on ImportError/any failure fall
 back to deterministic rules so ingest never blocks (aiml-guide offline path).
 """
 
+import asyncio
 import hashlib
 import json
 import re
@@ -73,6 +74,14 @@ def _rule_triage(case: dict, intake: dict) -> dict:
                 "certificate": "C4", "other": "C4"}
     criticality = crit_map.get(cat or "other", "C4")
     label, intensity = "neutral", 0.2
+    from services.sentiment import analyze_sentiment
+
+    sentiment = analyze_sentiment(text)
+    if sentiment:
+        label = {"negative": "distress", "neutral": "neutral", "positive": "hopeful"}.get(
+            sentiment["label"], "neutral"
+        )
+        intensity = sentiment["score"]
     for lab, kws in EMOTION_RULES:
         if any(k in text for k in kws):
             label = lab
@@ -127,7 +136,7 @@ async def run_triage(db, case_id, case: dict, intake: dict | None) -> dict:
         out.setdefault("source", "llm")
         out.setdefault("needs_review", False)
     except Exception:
-        out = _rule_triage(case, intake)
+        out = await asyncio.to_thread(_rule_triage, case, intake)
     _record(db, case_id, "triage", out, t0, case)
     await db.commit()
     return out

@@ -1,12 +1,13 @@
 """APScheduler jobs (demo mode) — hourly SLA alerts, nightly MV + risk refresh."""
 
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 
 from db import SessionLocal
-from models import Alert, Case, Institution, SlaConfig
+from models import Alert, Case, Institution, InstitutionRisk, SlaConfig
 from services.sla_engine import sla_status
 
 scheduler = AsyncIOScheduler()
@@ -62,8 +63,79 @@ async def nightly_refresh() -> None:
         await db.commit()
 
 
+async def reputation_refresh() -> None:
+    """Every 6h: refresh web intel for active institutions and alert on risk spikes."""
+    if not any(os.getenv(k) for k in ("TAVILY_API_KEY", "BRAVE_API_KEY")) and os.getenv(
+        "WEB_INTEL_LIVE", "0"
+    ) != "1":
+        return
+    from agents.web_intel import refresh as web_refresh
+    from services.risk import compute_risk
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+    async with SessionLocal() as db:
+        rows = (await db.execute(
+            select(Case.institution_id, func.count())
+            .where(Case.received_at >= cutoff, Case.institution_id.is_not(None))
+            .group_by(Case.institution_id)
+            .order_by(func.count().desc())
+            .limit(50)
+        )).all()
+        for institution_id, _ in rows:
+            before = await db.get(InstitutionRisk, institution_id)
+            old = before.risk_index if before else 0.0
+            await web_refresh(db, institution_id, force=True)
+            after = await compute_risk(db, institution_id)
+            if after.risk_index is not None and old is not None and after.risk_index - old >= 10:
+                since = datetime.now(timezone.utc) - timedelta(hours=24)
+                exists = (await db.execute(
+                    select(Alert).where(
+                        Alert.kind == "reputation",
+                        Alert.institution_id == institution_id,
+                        Alert.created_at >= since,
+                    )
+                )).first()
+                if not exists:
+                    db.add(Alert(
+                        kind="reputation",
+                        institution_id=institution_id,
+                        severity="high",
+                        message=f"Reputation risk rose {after.risk_index - old:.0f} points",
+                        target_role="authority",
+                    ))
+        await db.commit()
+
+
+async def daily_digest() -> None:
+    """Daily: one scoped summary alert per role (deduped per day)."""
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(hours=24)
+    async with SessionLocal() as db:
+        existing = (await db.execute(
+            select(Alert).where(Alert.kind == "digest", Alert.created_at >= since)
+        )).first()
+        if existing:
+            return
+        cases = (await db.execute(
+            select(Case).where(Case.status.notin_(("Disposed",)))
+        )).scalars().all()
+        overdue = sum(1 for c in cases if c.expected_disposal and c.expected_disposal < now)
+        new = (await db.execute(
+            select(func.count()).select_from(Case).where(Case.received_at >= since)
+        )).scalar() or 0
+        db.add(Alert(
+            kind="digest",
+            severity="low",
+            message=f"Daily digest: {len(cases)} open, {overdue} overdue, {new} new",
+            target_role=None,
+        ))
+        await db.commit()
+
+
 def start_scheduler() -> None:
     scheduler.add_job(sla_check, "interval", hours=1, id="sla_check", replace_existing=True)
+    scheduler.add_job(reputation_refresh, "interval", hours=6, id="web_intel", replace_existing=True)
+    scheduler.add_job(daily_digest, "cron", hour=8, id="digest", replace_existing=True)
     scheduler.add_job(nightly_refresh, "interval", hours=24, id="nightly", replace_existing=True)
     scheduler.start()
 

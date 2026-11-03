@@ -3,6 +3,11 @@
 import re
 from difflib import SequenceMatcher
 
+try:
+    from rapidfuzz import fuzz
+except ImportError:  # offline fallback; rapidfuzz is the documented matcher
+    fuzz = None
+
 ABBREV = {
     "engg": "engineering",
     "eng": "engineering",
@@ -25,10 +30,16 @@ def normalize_name(name: str) -> str:
 def _ratio(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
+    if fuzz is not None:
+        return fuzz.ratio(a, b) / 100.0
     return SequenceMatcher(None, a, b).ratio()
 
 
 def token_set_ratio(a: str, b: str) -> float:
+    if not a or not b:
+        return 0.0
+    if fuzz is not None:
+        return float(fuzz.token_set_ratio(a, b))
     ta, tb = set(a.split()), set(b.split())
     if not ta or not tb:
         return 0.0
@@ -48,6 +59,8 @@ def match_score(
     address: str | None = None,
     city: str | None = None,
     state: str | None = None,
+    name_embedding: list[float] | None = None,
+    query_embedding: list[float] | None = None,
 ) -> float:
     """0.5*token_set(name) + 0.3*address + 0.2*(state/city) — §5.
 
@@ -55,6 +68,10 @@ def match_score(
     comparison can still reach the 0.90 auto-link threshold.
     """
     ns = token_set_ratio(normalize_name(name), cand.get("name_normalized", "")) / 100.0
+    if name_embedding is not None and query_embedding is not None:
+        from services.embeddings import cosine
+
+        ns = 0.75 * ns + 0.25 * max(0.0, cosine(query_embedding, name_embedding))
     parts: list[tuple[float, float]] = [(0.5, ns)]
     if address:
         parts.append((0.3, _ratio(address.lower(), (cand.get("address") or "").lower())))
@@ -80,12 +97,25 @@ def verdict(score: float) -> str:
     return "new"            # new/unmatched institution
 
 
+# Category relatedness lookup matrix (system.md §5). Symmetric, same category = 1.0.
+CATEGORY_RELATEDNESS: dict[str, dict[str, float]] = {
+    "fraud": {"fees": 0.7, "certificate": 0.6, "examination": 0.5, "faculty": 0.4},
+    "fees": {"fraud": 0.7, "certificate": 0.5, "examination": 0.4, "placement": 0.3},
+    "faculty": {"safety": 0.5, "infrastructure": 0.5, "examination": 0.4, "placement": 0.4},
+    "safety": {"faculty": 0.5, "infrastructure": 0.4},
+    "infrastructure": {"faculty": 0.5, "safety": 0.4, "certificate": 0.3},
+    "examination": {"certificate": 0.6, "fraud": 0.5, "fees": 0.4, "faculty": 0.4},
+    "certificate": {"examination": 0.6, "fraud": 0.6, "fees": 0.5, "infrastructure": 0.3},
+    "placement": {"faculty": 0.4, "fees": 0.3, "infrastructure": 0.3},
+}
+
+
 def category_relatedness(a: str | None, b: str | None) -> float:
     if not a or not b:
         return 0.0
     if a == b:
         return 1.0
-    return 0.4  # rough relatedness without the full lookup matrix
+    return CATEGORY_RELATEDNESS.get(a, {}).get(b) or CATEGORY_RELATEDNESS.get(b, {}).get(a, 0.2)
 
 
 def time_overlap(received_a, received_b, window_days: int = 90) -> float:

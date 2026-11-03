@@ -122,6 +122,34 @@ async def _post_ingest(db: AsyncSession, case: Case) -> None:
             ))
     await db.commit()
 
+    from routers.ws import broadcast_event
+
+    await broadcast_event("case_created", {
+        "case_id": str(case.id), "case_no": case.case_no,
+        "priority_score": case.priority_score, "safety_flag": safety,
+    })
+
+
+async def _ingest_rows(rows: list[dict], db: AsyncSession) -> list[CaseOut]:
+    from sqlalchemy import select
+
+    created: list[Case] = []
+    for row in rows:
+        data = {k.strip(): (v.strip() if isinstance(v, str) and v else v) for k, v in row.items() if k}
+        payload = CaseCreate(**{k: v for k, v in data.items() if k in CaseCreate.model_fields})
+        dump = payload.model_dump()
+        if dump.get("case_no"):
+            existing = (await db.execute(
+                select(Case).where(Case.case_no == dump["case_no"])
+            )).scalar_one_or_none()
+            if existing:
+                created.append(existing)
+                continue
+        case = await create_case(db, dump)
+        await _post_ingest(db, case)
+        created.append(case)
+    return [CaseOut.model_validate(c) for c in created]
+
 
 @router.post("/cases", response_model=list[CaseOut], status_code=status.HTTP_201_CREATED)
 async def ingest_cases(
@@ -159,22 +187,27 @@ async def ingest_csv(
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "CSV must be UTF-8")
-    reader = csv.DictReader(io.StringIO(text))
-    created = []
-    from sqlalchemy import select
+    return await _ingest_rows(list(csv.DictReader(io.StringIO(text))), db)
 
-    for row in reader:
-        data = {k.strip(): (v.strip() if v else None) for k, v in row.items() if k}
-        payload = CaseCreate(**{k: v for k, v in data.items() if k in CaseCreate.model_fields})
-        dump = payload.model_dump()
-        if dump.get("case_no"):
-            existing = (await db.execute(
-                select(Case).where(Case.case_no == dump["case_no"])
-            )).scalar_one_or_none()
-            if existing:
-                created.append(existing)
-                continue
-        case = await create_case(db, dump)
-        await _post_ingest(db, case)
-        created.append(case)
-    return [CaseOut.model_validate(c) for c in created]
+
+@router.post("/cases/xlsx", response_model=list[CaseOut], status_code=status.HTTP_201_CREATED)
+async def ingest_xlsx(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_roles(ROLE_ADMIN, ROLE_OFFICER))],
+) -> list[CaseOut]:
+    raw = await request.body()
+    try:
+        from openpyxl import load_workbook
+
+        wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+    except Exception:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid .xlsx file")
+    ws = wb.active
+    iterator = ws.iter_rows(values_only=True)
+    try:
+        headers = [str(h).strip() if h is not None else "" for h in next(iterator)]
+    except StopIteration:
+        return []
+    rows = [dict(zip(headers, values)) for values in iterator]
+    return await _ingest_rows(rows, db)

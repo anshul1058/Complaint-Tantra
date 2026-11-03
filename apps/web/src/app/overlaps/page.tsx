@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { getAllOverlaps, postOverlapDecision } from '@/lib/api/client';
 import { CaseLink, OverlapTier, OverlapDecision } from '@/lib/types';
-import { mockCaseLinks } from '@/lib/mock/data';
-import { formatDate } from '@/lib/utils';
 import {
   GitMerge,
   Check,
@@ -15,11 +13,11 @@ import {
 } from 'lucide-react';
 
 export default function OverlapRoomPage() {
-  const [links, setLinks] = useState<CaseLink[]>(mockCaseLinks);
+  const [links, setLinks] = useState<CaseLink[]>([]);
   const [selectedTier, setSelectedTier] = useState<'ALL' | OverlapTier>('ALL');
 
   useEffect(() => {
-    getAllOverlaps().then(setLinks).catch(() => setLinks(mockCaseLinks));
+    getAllOverlaps().then(setLinks).catch(() => setLinks([]));
   }, []);
 
   const handleDecision = async (linkId: string, decision: OverlapDecision) => {

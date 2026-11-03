@@ -183,6 +183,7 @@ class WebFindingOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    institution_id: uuid.UUID | None = None
     url: str
     title: str | None = None
     source_name: str | None = None
@@ -290,3 +291,98 @@ class IntelRefreshOut(BaseModel):
     reputation_risk: float | None = None
     needs_review: bool = False
     detail: str | None = None
+
+
+class UserAdminOut(UserOut):
+    active: bool = True
+
+
+class UserAdminCreate(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str
+    bureau: str | None = None
+    region: str | None = None
+
+
+class UserAdminUpdate(BaseModel):
+    name: str | None = None
+    role: str | None = None
+    bureau: str | None = None
+    region: str | None = None
+    active: bool | None = None
+    password: str | None = None
+
+
+class SlaConfigIn(BaseModel):
+    category: str
+    days_to_dispose: int
+    warn_before_days: int
+
+
+class SlaConfigOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    category: str
+    days_to_dispose: int
+    warn_before_days: int
+
+
+class WeightsOut(BaseModel):
+    priority: dict[str, float]
+    risk: dict[str, float]
+    overlap: dict[str, float]
+
+
+class WeightsIn(WeightsOut):
+    pass
+
+
+class SavedFilterIn(BaseModel):
+    name: str
+    filters: dict
+
+
+class SavedFilterOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    filters: dict
+    created_at: datetime
+
+
+class AttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    case_id: uuid.UUID
+    filename: str
+    content_type: str | None = None
+    size: int | None = None
+    created_at: datetime
+
+
+class AlertSnoozeIn(BaseModel):
+    hours: int = 24
+
+
+class DigestOut(BaseModel):
+    since: datetime
+    total_open: int
+    overdue: int
+    safety_flagged: int
+    new_cases: int
+    high_priority: list[dict] = []
+    narrative: str | None = None
+
+
+class DossierOut(BaseModel):
+    institution_id: uuid.UUID
+    institution_name: str
+    risk: dict | None = None
+    counts: dict = {}
+    findings: list[dict] = []
+    narrative: str | None = None
+    source: str = "rules"

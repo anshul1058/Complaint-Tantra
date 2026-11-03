@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { getCases } from '@/lib/api/client';
 import { Case } from '@/lib/types';
-import { mockCases } from '@/lib/mock/data';
 import { formatDate, statusColor } from '@/lib/utils';
 import {
   Search,
@@ -15,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export default function CasesListPage() {
-  const [cases, setCases] = useState<Case[]>(mockCases);
+  const [cases, setCases] = useState<Case[]>([]);
   const [search, setSearch] = useState('');
   const [bureau, setBureau] = useState('ALL');
   const [status, setStatus] = useState('ALL');
@@ -43,7 +42,7 @@ export default function CasesListPage() {
     setSearch('');
     setBureau('ALL');
     setStatus('ALL');
-    setCases(mockCases);
+    setCases([]);
   };
 
   return (

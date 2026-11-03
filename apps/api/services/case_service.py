@@ -1,5 +1,6 @@
 """Case create/action helpers — every transition writes a case_actions row (§3)."""
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 
@@ -166,16 +167,30 @@ async def resolve_institution(
         if row:
             return row, 1.0
 
-    norm = normalize_name(name)
-    cands = await db.execute(
-        select(Institution).where(Institution.name_normalized.ilike(f"%{norm}%")).limit(20)
-    )
+    from services.embeddings import active_backend, embed_text
+
+    query_vec = await asyncio.to_thread(embed_text, name)
+    candidates = []
+    if query_vec is not None and active_backend() == "bge-m3":
+        candidates = list((await db.execute(
+            select(Institution)
+            .where(Institution.name_embedding.is_not(None))
+            .order_by(Institution.name_embedding.cosine_distance(query_vec))
+            .limit(20)
+        )).scalars())
+    if not candidates:
+        norm = normalize_name(name)
+        candidates = list((await db.execute(
+            select(Institution).where(Institution.name_normalized.ilike(f"%{norm}%")).limit(20)
+        )).scalars())
+
     best, best_score = None, 0.0
-    for cand in cands.scalars():
+    for cand in candidates:
         s = match_score(
             {"name_normalized": cand.name_normalized, "address": cand.address,
              "city": cand.city, "state": cand.state},
             name=name, address=address, city=city, state=state,
+            name_embedding=cand.name_embedding, query_embedding=query_vec,
         )
         if s > best_score:
             best, best_score = cand, s

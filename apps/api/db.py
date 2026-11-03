@@ -46,3 +46,19 @@ async def init_db() -> None:
             FROM cases GROUP BY 1,2,3
             """
         ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_cases_received_at ON cases (received_at DESC)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_cases_status_bureau ON cases (status, assigned_bureau)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_alerts_unread ON alerts (acknowledged_at, created_at DESC)"
+        ))
+        try:
+            # Append-only timeline; the app only inserts (§3, §8).
+            await conn.execute(text(
+                "REVOKE UPDATE, DELETE, TRUNCATE ON case_actions FROM PUBLIC"
+            ))
+        except Exception:
+            pass

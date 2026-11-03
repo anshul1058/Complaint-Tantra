@@ -69,3 +69,50 @@ async def institution_leaderboard(db: AsyncSession, limit: int = 20) -> list[dic
         {"institution_id": str(i), "name": n, "city": c, "state": s, "cases": k}
         for i, n, c, s, k in rows.all()
     ]
+
+
+async def status_wise(db: AsyncSession) -> list[dict]:
+    rows = (await db.execute(
+        select(Case.status, func.count()).group_by(Case.status).order_by(func.count().desc())
+    )).all()
+    return [{"status": s, "n": n} for s, n in rows]
+
+
+async def duplicates(db: AsyncSession) -> list[dict]:
+    from models import CaseLink
+
+    rows = (await db.execute(
+        select(CaseLink.tier, CaseLink.decision, func.count())
+        .group_by(CaseLink.tier, CaseLink.decision)
+        .order_by(func.count().desc())
+    )).all()
+    return [{"tier": t, "decision": d, "n": n} for t, d, n in rows]
+
+
+async def performance(db: AsyncSession) -> list[dict]:
+    rows = (await db.execute(
+        select(
+            Case.assigned_bureau,
+            func.count(),
+            func.avg(func.extract("epoch", Case.last_action_at - Case.received_at) / 86400),
+        )
+        .where(Case.status == "Disposed", Case.last_action_at.is_not(None))
+        .group_by(Case.assigned_bureau)
+    )).all()
+    return [
+        {"bureau": b, "disposed": n, "avg_days": round(float(avg or 0), 1)}
+        for b, n, avg in rows
+    ]
+
+
+async def monthly(db: AsyncSession) -> list[dict]:
+    rows = (await db.execute(
+        select(
+            func.date_trunc("month", Case.received_at).label("m"),
+            Case.assigned_bureau,
+            func.count(),
+        )
+        .group_by("m", Case.assigned_bureau)
+        .order_by("m")
+    )).all()
+    return [{"month": m.date().isoformat(), "bureau": b, "n": n} for m, b, n in rows]

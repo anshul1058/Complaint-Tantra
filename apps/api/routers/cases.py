@@ -171,6 +171,7 @@ async def list_cases(
     db: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
     institution: uuid.UUID | None = None,
+    permanent_id: str | None = None,
     case_no: str | None = None,
     search: str | None = None,
     bureau: str | None = None,
@@ -189,6 +190,8 @@ async def list_cases(
         stmt = stmt.where(clause)
     if institution:
         stmt = stmt.where(Case.institution_id == institution)
+    if permanent_id:
+        stmt = stmt.where(Institution.permanent_id == permanent_id)
     if case_no:
         stmt = stmt.where(Case.case_no.ilike(f"%{case_no}%"))
     if search:
@@ -201,6 +204,7 @@ async def list_cases(
             Case.text_original.ilike(like),
             Case.text_english.ilike(like),
             Institution.name.ilike(like),
+            Institution.permanent_id.ilike(like),
         ))
     if bureau:
         stmt = stmt.where(Case.assigned_bureau == bureau)
@@ -233,6 +237,10 @@ async def get_case(
     user: Annotated[User, Depends(get_current_user)],
 ):
     case, full = await _get_scoped(db, case_id, user)
+    from services.audit import add_event
+
+    add_event(db, action="case_view", user=user, entity="case", entity_id=str(case.id))
+    await db.commit()
     inst = await db.get(Institution, case.institution_id) if case.institution_id else None
     if not full:
         officer = await db.get(User, case.assigned_officer) if case.assigned_officer else None
@@ -317,6 +325,10 @@ async def post_action(
         await db.commit()
     if body.action in ("assigned", "transferred") and not case.priority_score:
         case.priority_reasons = None
+
+    from routers.ws import broadcast_event
+
+    await broadcast_event("case_updated", {"case_id": str(case.id), "status": case.status})
 
     inst = await db.get(Institution, case.institution_id) if case.institution_id else None
     actions = (await db.execute(

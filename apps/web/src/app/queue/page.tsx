@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { getPriorityQueue } from '@/lib/api/client';
 import { Case } from '@/lib/types';
-import { mockCases } from '@/lib/mock/data';
 import { formatDate } from '@/lib/utils';
 import {
   ListOrdered,
@@ -19,12 +18,12 @@ import {
 } from 'lucide-react';
 
 export default function PriorityQueuePage() {
-  const [cases, setCases] = useState<Case[]>(mockCases);
+  const [cases, setCases] = useState<Case[]>([]);
   const [bureauFilter, setBureauFilter] = useState('ALL');
   const [expandedCaseId, setExpandedCaseId] = useState<string | null>('case-001');
 
   useEffect(() => {
-    getPriorityQueue().then(setCases).catch(() => setCases(mockCases));
+    getPriorityQueue().then(setCases).catch(() => setCases([]));
   }, []);
 
   const filteredCases = cases.filter((c) => {

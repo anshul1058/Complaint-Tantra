@@ -21,20 +21,21 @@ import {
   RegionHeatmapData,
   Alert,
 } from '@/lib/types';
-import {
-  mockDashboardSummary,
-  mockBureauWorkload,
-  mockRegionHeatmap,
-  mockAlerts,
-} from '@/lib/mock/data';
+const EMPTY_SUMMARY: DashboardSummary = {
+  total: 0, pending: 0, under_process: 0, disposed: 0, transferred: 0,
+  overdue: 0, escalated: 0, safety_flagged: 0,
+};
 import { RefreshCw, ArrowRight, ShieldCheck } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { eventsUrl } from '@/lib/api/client';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<DashboardSummary>(mockDashboardSummary);
-  const [workload, setWorkload] = useState<BureauWorkload[]>(mockBureauWorkload);
-  const [heatmap, setHeatmap] = useState<RegionHeatmapData[]>(mockRegionHeatmap);
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
+  const { token } = useAuth();
+  const [summary, setSummary] = useState<DashboardSummary>(EMPTY_SUMMARY);
+  const [workload, setWorkload] = useState<BureauWorkload[]>([]);
+  const [heatmap, setHeatmap] = useState<RegionHeatmapData[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -63,6 +64,13 @@ export default function DashboardPage() {
     }, 30000);
     return () => clearInterval(timer);
   }, [loadData]);
+
+  useEffect(() => {
+    if (!token) return;
+    const socket = new WebSocket(eventsUrl(token));
+    socket.onmessage = () => loadData();
+    return () => socket.close();
+  }, [token, loadData]);
 
   return (
     <AppLayout
