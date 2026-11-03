@@ -59,7 +59,7 @@ export default function ReportsPage() {
 
   if (!isAuthorized) {
     return (
-      <AppLayout pageTitle="Reports & Analytics" hindiTitle="रिपोर्ट और विश्लेषण">
+      <AppLayout pageTitle="Reports & Analytics">
         <div className="bg-white rounded-xl border border-amber-300 p-8 text-center max-w-xl mx-auto my-12 shadow-md">
           <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto mb-3">
             <ShieldAlert className="w-6 h-6 text-amber-700" />
@@ -89,7 +89,6 @@ export default function ReportsPage() {
   return (
     <AppLayout
       pageTitle="Executive Reports & Cross-Bureau Analytics"
-      hindiTitle="कार्यकारी रिपोर्ट एवं विश्लेषण"
       actionButton={
         <div className="flex items-center gap-2">
           <button

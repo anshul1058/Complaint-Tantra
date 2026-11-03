@@ -39,7 +39,6 @@ export default function PriorityQueuePage() {
   return (
     <AppLayout
       pageTitle="AI Priority Scored Queue"
-      hindiTitle="एआई प्राथमिकता क्रमबद्ध कतार"
       actionButton={
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500 font-medium">Filter Bureau:</span>

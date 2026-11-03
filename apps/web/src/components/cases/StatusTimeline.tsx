@@ -52,7 +52,7 @@ export const StatusTimeline: React.FC<StatusTimelineProps> = ({ actions }) => {
             Append-Only Audit Log & Case Timeline
           </h3>
           <p className="text-xs text-slate-500">
-            अपरिवर्तनीय लेखा परीक्षा इतिहास (Cryptographic & Tamper-Proof Audit)
+            Cryptographic & Tamper-Proof Audit
           </p>
         </div>
 

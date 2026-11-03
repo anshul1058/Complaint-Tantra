@@ -79,7 +79,6 @@ function CaseDetailContent() {
   return (
     <AppLayout
       pageTitle={`Case Dossier: ${caseData.case_no}`}
-      hindiTitle="शिकायत प्रकरण विवरण"
       actionButton={
         <div className="flex items-center gap-2">
           <Link

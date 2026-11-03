@@ -8,14 +8,12 @@ import { SLAAlertStrip } from '@/components/layout/SLAAlertStrip';
 interface AppLayoutProps {
   children: React.ReactNode;
   pageTitle?: string;
-  hindiTitle?: string;
   actionButton?: React.ReactNode;
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
   children,
   pageTitle,
-  hindiTitle,
   actionButton,
 }) => {
   return (
@@ -40,11 +38,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   <h1 className="text-xl md:text-2xl font-extrabold text-[#1E3A8A] tracking-tight">
                     {pageTitle}
                   </h1>
-                  {hindiTitle && (
-                    <span className="text-xs font-bold text-sky-800 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
-                      {hindiTitle}
-                    </span>
-                  )}
                 </div>
                 <p className="text-xs text-slate-500 mt-1 font-medium">
                   Central Monitoring & Triage Grid • Live AICTE Data Lake Sync
@@ -63,7 +56,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       <footer className="bg-white border-t border-slate-200/80 text-slate-500 text-xs py-4 px-6 mt-auto">
         <div className="max-w-[1720px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-[#1E3A8A]">शिकायत-तंत्र | Complaint-Tantra</span>
+            <span className="font-bold text-[#1E3A8A]">Complaint-Tantra</span>
             <span className="text-slate-300">•</span>
             <span className="text-slate-500 text-[11px]">
               AICTE Integrated Grievance Scrutiny & Bureau Overlap Platform
@@ -71,7 +64,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           </div>
 
           <div className="flex items-center gap-3 text-[11px] font-medium text-slate-400">
-            <span className="text-[#1E3A8A] font-serif font-bold">सत्यमेव जयते</span>
+            <span className="text-[#1E3A8A] font-serif font-bold">Satyameva Jayate</span>
             <span>•</span>
             <span className="text-emerald-700 font-semibold">Digital India</span>
             <span>•</span>

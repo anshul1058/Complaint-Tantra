@@ -48,7 +48,6 @@ function Institution360Content() {
   return (
     <AppLayout
       pageTitle={`Institution 360°: ${inst.name}`}
-      hindiTitle="संस्थान 360° रूपरेखा"
       actionButton={
         <div className="flex items-center gap-2">
           <button

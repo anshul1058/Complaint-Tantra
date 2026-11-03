@@ -35,7 +35,7 @@ export const BureauWorkloadChart: React.FC<BureauWorkloadChartProps> = ({ data }
             </h3>
           </div>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            ब्यूरो-वार कार्यभार एवं निस्तारण स्थिति • Live SQL Aggregation across 6 cells
+            Live SQL Aggregation across 6 cells
           </p>
 
           <div className="mt-2 flex items-baseline gap-2">
@@ -90,25 +90,25 @@ export const BureauWorkloadChart: React.FC<BureauWorkloadChartProps> = ({ data }
             <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
             <Bar
               dataKey="pending"
-              name="Pending (लंबित)"
+              name="Pending"
               fill="#F59E0B"
               stackId="a"
             />
             <Bar
               dataKey="under_process"
-              name="Under Process (प्रक्रियाधीन)"
+              name="Under Process"
               fill="#0EA5E9"
               stackId="a"
             />
             <Bar
               dataKey="disposed"
-              name="Disposed (निस्तारित)"
+              name="Disposed"
               fill="#16A34A"
               stackId="a"
             />
             <Bar
               dataKey="overdue"
-              name="Overdue (ओवरड्यू)"
+              name="Overdue"
               fill="#DC2626"
               radius={[4, 4, 0, 0]}
               stackId="a"

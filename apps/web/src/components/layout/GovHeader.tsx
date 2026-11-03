@@ -49,7 +49,7 @@ export const GovHeader: React.FC = () => {
               <rect x="28" y="100" width="44" height="6" rx="2" fill="#1E3A8A" />
             </svg>
             <span className="text-[6.5px] font-bold text-[#1E3A8A] tracking-tighter uppercase font-serif">
-              सत्यमेव जयते
+              SATYAMEVA JAYATE
             </span>
           </div>
 

@@ -207,10 +207,10 @@ export const mockCases: Case[] = [
     category: 'Unapproved Courses & Affiliation Fraud',
     subcategory: 'Running B.Tech AI-ML without Extension of Approval (EoA)',
     text_original:
-      'महाशय, अपेक्स इंस्टिट्यूट नॉलेज पार्क 3 ने सत्र 2025-26 के लिए बी.टेक एआई-एमएल में 120 छात्रों से 1.8 लाख रुपये प्रति वर्ष फीस लेकर एडमिशन लिया। जब परीक्षा फॉर्म भरने का समय आया तो पता चला कि इस कोर्स को एआईसीटीई की मंजूरी (EoA) ही नहीं है। कॉलेज प्रशासन ने छात्रों को धमकाया है कि यदि किसी ने शिकायत की तो आंतरिक अंक काट दिए जाएंगे और निष्कासित कर दिया जाएगा। हम बहुत तनाव में हैं।',
+      'Respected Sir, Apex Institute Knowledge Park 3 admitted 120 students in B.Tech AI-ML for session 2025-26 charging Rs 1.8 Lakh per annum fee. When the examination form submission arrived, we discovered this course has no AICTE Extension of Approval (EoA). College administration has threatened students that internal marks will be deducted and expulsion initiated if anyone complains. We are under severe mental distress.',
     text_english:
       'Respected Sir, Apex Institute Knowledge Park 3 admitted 120 students in B.Tech AI-ML for session 2025-26 charging Rs 1.8 Lakh per annum fee. When the examination form submission arrived, we discovered this course has no AICTE Extension of Approval (EoA). College administration has threatened students that internal marks will be deducted and expulsion initiated if anyone complains. We are under severe mental distress.',
-    language: 'Hindi (translated by Intake Agent)',
+    language: 'English',
     status: 'Under Process',
     received_at: '2026-10-21T10:30:00Z',
     expected_disposal: '2026-10-31T18:00:00Z',
@@ -707,7 +707,7 @@ export const mockCaseActions: CaseAction[] = [
     actor_type: 'agent',
     action: 'created',
     to_state: 'Received',
-    remarks: 'Auto-ingested via Portal CSV bulk intake. Translated Hindi text to English. Criticality C1 assigned.',
+    remarks: 'Auto-ingested via Portal CSV bulk intake. Criticality C1 assigned.',
     created_at: '2026-10-21T10:30:00Z',
   },
   {
