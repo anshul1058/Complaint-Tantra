@@ -386,3 +386,33 @@ class DossierOut(BaseModel):
     findings: list[dict] = []
     narrative: str | None = None
     source: str = "rules"
+
+
+class PublicComplaintCreate(BaseModel):
+    complainant_name: str
+    complainant_email: str
+    complainant_phone: str | None = None
+    complainant_type: str
+    college_name: str
+    college_permanent_id: str | None = None
+    college_affiliation: str | None = None
+    college_address: str | None = None
+    college_city: str | None = None
+    college_state: str | None = None
+    college_pincode: str | None = None
+    category: str
+    subcategory: str | None = None
+    subject: str
+    description: str
+    incident_date: str | None = None
+    relief_sought: str | None = None
+    language: str = "English"
+    supporting_details: str | None = None
+
+
+class PublicComplaintOut(BaseModel):
+    case_id: uuid.UUID
+    case_no: str
+    status: str
+    assigned_bureau: str
+    message: str

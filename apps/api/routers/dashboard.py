@@ -17,6 +17,8 @@ OPEN_STATUSES = ("Received", "UnderProcess", "Transferred", "Escalated", "Reopen
 
 def _scoped(stmt, user: User):
     if user.role in ("officer", "regional"):
+        if user.role == "officer":
+            return stmt.where((Case.assigned_bureau == user.bureau) | (Case.source_bureau == "PUBLIC"))
         return stmt.where(Case.assigned_bureau == user.bureau)
     return stmt
 

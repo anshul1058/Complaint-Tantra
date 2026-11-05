@@ -16,6 +16,36 @@ type HeatmapRowApi = components['schemas']['HeatmapRow'];
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+export interface PublicComplaintPayload {
+  complainant_name: string;
+  complainant_email: string;
+  complainant_phone?: string;
+  complainant_type: string;
+  college_name: string;
+  college_permanent_id?: string;
+  college_affiliation?: string;
+  college_address?: string;
+  college_city?: string;
+  college_state?: string;
+  college_pincode?: string;
+  category: string;
+  subcategory?: string;
+  subject: string;
+  description: string;
+  incident_date?: string;
+  relief_sought?: string;
+  language: string;
+  supporting_details?: string;
+}
+
+export interface PublicComplaintResult {
+  case_id: string;
+  case_no: string;
+  status: string;
+  assigned_bureau: string;
+  message: string;
+}
+
 function getStoredToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('complaint_tantra_jwt');
@@ -34,6 +64,15 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   if (!res.ok) throw new Error(`API Error: ${res.status} ${res.statusText}`);
   if (res.status === 204) return undefined as T;
   return await res.json();
+}
+
+export function registerPublicComplaint(
+  payload: PublicComplaintPayload
+): Promise<PublicComplaintResult> {
+  return request<PublicComplaintResult>('/public/complaints', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function getDashboardSummary(): Promise<DashboardSummaryApi> {

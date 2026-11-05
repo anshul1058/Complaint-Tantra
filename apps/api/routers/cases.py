@@ -150,6 +150,8 @@ def _scope_clause(user: User):
         if user.region:
             clauses.append(Institution.region == user.region)
         return or_(*clauses)
+    if user.role == ROLE_OFFICER:
+        return or_(Case.assigned_bureau == user.bureau, Case.source_bureau == "PUBLIC")
     return Case.assigned_bureau == user.bureau
 
 

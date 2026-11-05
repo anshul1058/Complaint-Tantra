@@ -22,6 +22,7 @@ from routers import (
     institutions,
     meta,
     reports,
+    public,
     ws,
 )
 from workers.scheduler import start_scheduler, stop_scheduler
@@ -68,7 +69,7 @@ async def request_context(request: Request, call_next):
     return response
 
 
-for r in (auth, meta, ingest, cases, institutions, dashboard, alerts, reports, agents,
+for r in (auth, meta, ingest, public, cases, institutions, dashboard, alerts, reports, agents,
           admin, filters, attachments, ws):
     app.include_router(r.router)
 
