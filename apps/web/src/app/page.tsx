@@ -47,8 +47,10 @@ export default function DashboardPage() {
     try {
       const [s, w, h, a, cases] = await Promise.all([
         getDashboardSummary(),
-        getBureauWorkload(),
-        getRegionHeatmap(),
+          // These two views are intentionally restricted to senior/authority
+          // users. A 403 here must not hide the officer's core dashboard.
+          getBureauWorkload().catch(() => []),
+          getRegionHeatmap().catch(() => []),
         getAlerts(),
         getPriorityQueue(),
       ]);
