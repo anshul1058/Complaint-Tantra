@@ -13,7 +13,15 @@ def _async_url(url: str) -> str:
     return url
 
 
-engine = create_async_engine(_async_url(settings.database_url), pool_pre_ping=True)
+# Supabase's transaction pooler (PgBouncer) can reuse a backend connection for
+# different clients. asyncpg's default prepared-statement cache then causes
+# errors such as `prepared statement ... already exists` during startup. Keep
+# the cache disabled for pooler URLs; it is safe for direct Postgres URLs too.
+engine = create_async_engine(
+    _async_url(settings.database_url),
+    pool_pre_ping=True,
+    connect_args={"statement_cache_size": 0},
+)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
