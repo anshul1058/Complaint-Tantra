@@ -39,6 +39,33 @@ class LLMConfig:
 
 CONFIG = LLMConfig()
 
+PROVIDER_PREFIX = {
+    "ollama": "ollama",
+    "gemini": "gemini",
+    "anthropic": "anthropic",
+    "openai-free": "openai",
+}
+
+
+def _qualified_model(model: str | None) -> str:
+    """LiteLLM needs a provider prefix for most non-OpenAI models."""
+    value = (model or "").strip()
+    if not value:
+        return value
+    prefix = PROVIDER_PREFIX.get(CONFIG.provider)
+    if not prefix:
+        return value
+    if CONFIG.provider == "openai-free":
+        # Groq model ids contain slashes (e.g. qwen/qwen3.8-27b), so keep the
+        # openai/ LiteLLM prefix unless it is already a full openai/x/y id.
+        if value.startswith("openai/") and value.count("/") >= 2:
+            return value
+        return f"openai/{value}"
+    if "/" in value:
+        return value
+    return f"{prefix}/{value}"
+
+
 _trace_client = None
 _trace_failed = False
 
@@ -55,11 +82,19 @@ def _langfuse_client():
     try:
         from langfuse import Langfuse
 
-        _trace_client = Langfuse(
+        client = Langfuse(
             public_key=public_key,
             secret_key=secret_key,
             host=os.getenv("LANGFUSE_HOST") or "https://cloud.langfuse.com",
         )
+        if hasattr(client, "auth_check"):
+            try:
+                if not client.auth_check():
+                    raise RuntimeError("Langfuse auth check failed")
+            except Exception:
+                _trace_failed = True
+                return None
+        _trace_client = client
         atexit.register(_trace_client.flush)
     except Exception:
         _trace_failed = True
@@ -86,7 +121,7 @@ def _trace(prompt: str, model: str):
 
 def _build_litellm_kwargs(prompt: str, schema: type[BaseModel] | None = None) -> dict[str, Any]:
     kwargs: dict[str, Any] = {
-        "model": CONFIG.model,
+        "model": _qualified_model(CONFIG.model),
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
         "timeout": CONFIG.timeout,
@@ -110,7 +145,7 @@ def complete_json(prompt: str, schema: type[BaseModel] | None = None, model: str
 
     kwargs = _build_litellm_kwargs(prompt, schema)
     if model:
-        kwargs["model"] = model
+        kwargs["model"] = _qualified_model(model)
     with _trace(prompt, str(kwargs.get("model") or CONFIG.model)) as span:
         resp = None
         last_error: Exception | None = None

@@ -54,7 +54,8 @@ def analyze_sentiment(text: str | None) -> dict | None:
         return None
     try:
         result = model(text[:512])[0]
-        label = LABELS.get(str(result.get("label", "")).upper(), "neutral")
+        raw = str(result.get("label", ""))
+        label = LABELS.get(raw.upper()) or LABELS.get(raw.lower(), "neutral")
         return {"label": label, "score": round(float(result.get("score", 0.0)), 3)}
     except Exception:
         return None

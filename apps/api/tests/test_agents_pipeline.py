@@ -71,7 +71,13 @@ def test_web_intel_fixture_path():
     assert len(parsed.findings) >= 1
 
 
-def test_web_intel_offline_fallback_when_no_fixture():
+def test_web_intel_offline_fallback_when_no_fixture(monkeypatch):
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+    monkeypatch.delenv("BRAVE_API_KEY", raising=False)
+    monkeypatch.setenv("WEB_INTEL_LIVE", "0")
+    from agents import llm
+
+    monkeypatch.setattr(llm.CONFIG, "provider", "none")
     from agents.web_intel import run_web_intel
 
     out = run_web_intel({"name": "Unknown College", "name_normalized": "unknown_college"}, cached=False)
@@ -90,7 +96,7 @@ def test_overlap_judge_schema():
 def test_llm_config_defaults():
     from agents.llm import CONFIG
 
-    assert CONFIG.provider in ("ollama", "openai-free", "anthropic", "gemini")
+    assert CONFIG.provider in ("none", "ollama", "openai-free", "anthropic", "gemini")
     assert CONFIG.model
 
 
