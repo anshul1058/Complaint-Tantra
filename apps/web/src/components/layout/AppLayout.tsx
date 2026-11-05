@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { GovHeader } from '@/components/layout/GovHeader';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { SLAAlertStrip } from '@/components/layout/SLAAlertStrip';
+import { useAuth } from '@/lib/auth';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -16,6 +18,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   pageTitle,
   actionButton,
 }) => {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) router.replace('/login');
+  }, [router, user]);
+
+  if (!user) return null;
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F3F7FD] text-slate-900 selection:bg-sky-100 selection:text-[#1E3A8A]">
       {/* Official AICTE & Government of India Header */}
@@ -44,7 +55,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 </p>
               </div>
 
-              {actionButton && <div>{actionButton}</div>}
+              {actionButton}
             </div>
           )}
 

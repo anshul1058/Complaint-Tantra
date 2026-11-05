@@ -3,11 +3,13 @@
 
 Pipeline:  enrich_institutions.py → scrape_sites.py → this script
 Inputs:    data/institutions_stage1.json, data/site_cache.jsonl
-Output:    data/institutions.csv   (UTF-8, exact 34-col header)
+Output:    data/institutions.csv   (demo IDs, 25% blank)
+           data/institutions_real.csv  (--real, all AICTE permanent IDs)
 
 Self-checks run at the end (header/rows/states/blank-id/enum rules).
 """
 
+import argparse
 import csv
 import json
 import re
@@ -22,6 +24,7 @@ DATA = ROOT / "data"
 STAGE1 = DATA / "institutions_stage1.json"
 CACHE = DATA / "site_cache.jsonl"
 OUT = DATA / "institutions.csv"
+OUT_REAL = DATA / "institutions_real.csv"
 
 HEADER = (
     "permanent_id,institution_name,short_name,institute_type,constitution,category,"
@@ -166,6 +169,10 @@ def constitution_of(trust_name: str) -> str:
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--real", action="store_true", help="full real IDs, no demo blanks")
+    args = ap.parse_args()
+    out_path = OUT_REAL if args.real else OUT
     stage1 = json.loads(STAGE1.read_text())
     cache = load_cache()
     pin_geo = load_pin_geo()
@@ -214,7 +221,7 @@ def main() -> int:
             pin = rec["pincode"]
 
         out_rows.append({
-            "permanent_id": "" if blank_id(row["aicte_id"]) else row["aicte_id"],
+            "permanent_id": row["aicte_id"] if args.real else ("" if blank_id(row["aicte_id"]) else row["aicte_id"]),
             "institution_name": row["institution_name"],
             "short_name": short_name(row["institution_name"]),
             "institute_type": INSTITUTE_TYPE.get(row.get("institute_type_raw", ""),
@@ -251,13 +258,13 @@ def main() -> int:
             "notes": "; ".join(notes),
         })
 
-    with OUT.open("w", newline="", encoding="utf-8") as f:
+    with out_path.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=HEADER, lineterminator="\n")
         w.writeheader()
         w.writerows(out_rows)
 
     # self-check (guide rules)
-    with OUT.open(encoding="utf-8") as f:
+    with out_path.open(encoding="utf-8") as f:
         rdr = csv.reader(f)
         header = next(rdr)
         data = list(rdr)
@@ -266,13 +273,16 @@ def main() -> int:
     states = {r[13] for r in data if r[13]}
     assert len(states) >= 20, f"only {len(states)} states"
     blank_pct = sum(1 for r in data if not r[0]) / len(data)
-    assert 0.15 <= blank_pct <= 0.35, f"blank permanent_id {blank_pct:.0%} outside 15-35%"
+    if args.real:
+        assert blank_pct == 0, f"{blank_pct:.0%} blank permanent_id in real export"
+    else:
+        assert 0.15 <= blank_pct <= 0.35, f"blank permanent_id {blank_pct:.0%} outside 15-35%"
     assert all(r[7].isdigit() for r in data), "non-numeric intake"
     assert all(r[17] in ("North", "South", "East", "West", "Central", "North-East", "")
                for r in data), "bad aicte_region"
 
     fill = {h: sum(1 for r in data if r[i]) for i, h in enumerate(header)}
-    print(f"\nwrote {OUT.relative_to(ROOT)}: {len(data)} rows, {len(states)} states, "
+    print(f"\nwrote {out_path.relative_to(ROOT)}: {len(data)} rows, {len(states)} states, "
           f"blank permanent_id {blank_pct:.0%}")
     print("column fill:")
     for h in header:

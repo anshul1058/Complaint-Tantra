@@ -101,12 +101,14 @@ Complaint-Tantra/
 │       │   └── login/page.tsx
 │       ├── src/components/         # dashboard, case, layout and UI primitives
 │       ├── src/lib/api/client.ts   # typed API wrapper + auth header (+ report exports)
+│       ├── src/lib/api/schema.d.ts # generated from FastAPI OpenAPI schema
 │       ├── src/lib/auth.tsx        # JWT login, role switching, session state
 │       ├── src/lib/types.ts        # frontend contract types
 │       └── src/lib/empty.ts        # empty shells; all data comes from the API
 │
 ├── data/
-│   ├── institutions.csv            # cleaned AICTE institution master (~13k rows)
+│   ├── institutions.csv            # demo master (25% IDs blanked for matcher)
+│   ├── institutions_real.csv       # all real AICTE permanent IDs restored
 │   ├── institutions_stage1.json
 │   ├── web_fixtures/               # offline web-intel fixtures
 │   └── raw/                        # scraped sources (gitignored)
@@ -129,10 +131,10 @@ The root `index.html` placeholder has been removed. **`apps/web` is the frontend
 
 | Layer | Stack |
 |---|---|
-| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, shadcn-style components, Recharts, Lucide |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, shadcn-style components, Recharts, React Flow, Leaflet, Lucide |
 | Backend | FastAPI, SQLAlchemy 2 async, Pydantic 2, PyJWT, APScheduler |
 | Database | PostgreSQL 16 + `pgvector` + `pg_trgm` (Supabase compatible) |
-| AI/ML | LiteLLM, LangGraph, strict Pydantic JSON schemas, rapidfuzz-style entity matching, deterministic scoring |
+| AI/ML | LiteLLM, LangGraph, strict Pydantic JSON schemas, rapidfuzz-style entity matching, deterministic scoring, optional Langfuse tracing |
 | Search | Tavily API (optional), cached fixtures for offline demos |
 | Deploy | Docker, Vercel/free-tier friendly |
 
@@ -172,7 +174,7 @@ Download and verify the models, then backfill existing rows:
 .venv/bin/python scripts/backfill_embeddings.py
 ```
 
-Run `ollama pull llama3.2:3b` for the documented local LLM path (`LLM_PROVIDER=ollama`).
+Run `ollama pull llama3.2:3b` for the documented local LLM path (`LLM_PROVIDER=ollama`). Optional Langfuse tracing activates when `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are set.
 
 ### 3. Backend
 
@@ -199,6 +201,13 @@ npm run dev
 ```
 
 Open <http://localhost:3000>. The frontend is API-only (no mock fallback); start the backend and seed demo users before logging in.
+
+Regenerate frontend API types after backend schema changes:
+
+```bash
+.venv/bin/python scripts/export_openapi.py
+cd apps/web && npm run gen:api
+```
 
 ### Demo accounts
 

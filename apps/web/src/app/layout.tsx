@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
+import "@xyflow/react/dist/style.css";
 import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {

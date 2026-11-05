@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { RegionHeatmapData } from '@/lib/types';
 import { MapPin, AlertCircle, Compass } from 'lucide-react';
+import { IndiaMap } from './IndiaMap';
 
 interface RegionHeatmapProps {
   data: RegionHeatmapData[];
@@ -17,6 +18,7 @@ export const RegionHeatmap: React.FC<RegionHeatmapProps> = ({ data }) => {
       : data.filter((d) => d.region === selectedRegion);
 
   const maxCount = Math.max(...data.map((d) => d.count), 1);
+  const highest = [...data].sort((a, b) => b.count - a.count)[0];
 
   return (
     <div className="bg-white/95 backdrop-blur-xs rounded-2xl border border-slate-200/80 p-5 shadow-[0_2px_12px_-2px_rgba(30,58,138,0.04)]">
@@ -37,7 +39,7 @@ export const RegionHeatmap: React.FC<RegionHeatmapProps> = ({ data }) => {
 
         {/* Region Filter Buttons */}
         <div className="flex items-center gap-1 overflow-x-auto text-xs">
-          {['ALL', 'Northern', 'Western', 'Southern', 'Eastern', 'Central'].map(
+          {['ALL', 'North', 'South', 'East', 'West', 'Central', 'North-East'].map(
             (r) => (
               <button
                 type="button"
@@ -54,6 +56,16 @@ export const RegionHeatmap: React.FC<RegionHeatmapProps> = ({ data }) => {
             )
           )}
         </div>
+      </div>
+
+      <div className="mb-4 relative z-0">
+        {filteredData.length ? (
+          <IndiaMap data={filteredData} />
+        ) : (
+          <div className="h-[340px] rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-xs text-slate-500">
+            No mapped complaints for this region yet.
+          </div>
+        )}
       </div>
 
       {/* Grid of Regional States */}
@@ -111,7 +123,9 @@ export const RegionHeatmap: React.FC<RegionHeatmapProps> = ({ data }) => {
 
       <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
         <span>* Geospatial density synchronized with AICTE Institution Master</span>
-        <span className="font-semibold text-slate-700">Highest Inflow: Maharashtra (315)</span>
+        <span className="font-semibold text-slate-700">
+          Highest Inflow: {highest?.state ?? "—"} ({highest?.count ?? 0})
+        </span>
       </div>
     </div>
   );

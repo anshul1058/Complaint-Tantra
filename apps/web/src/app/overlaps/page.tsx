@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { OverlapGraph } from '@/components/overlaps/OverlapGraph';
 import { getAllOverlaps, postOverlapDecision } from '@/lib/api/client';
 import { CaseLink, OverlapTier, OverlapDecision } from '@/lib/types';
 import {
@@ -117,6 +118,8 @@ export default function OverlapRoomPage() {
           Tier 3: Possible Duplicate ({t3Count})
         </button>
       </div>
+
+      <OverlapGraph links={filteredLinks} />
 
       {/* 3. Overlap Evidence Cards */}
       <div className="space-y-5">

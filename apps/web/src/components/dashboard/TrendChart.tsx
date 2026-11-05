@@ -14,6 +14,9 @@ import { Sparkles, ChevronDown } from 'lucide-react';
 
 export const TrendChart: React.FC = () => {
   const [period, setPeriod] = useState('6 Months');
+  const [showPeriodMenu, setShowPeriodMenu] = useState(false);
+
+  const periods = ['6 Months', '3 Months', '1 Month'];
 
   const trendData = [
     { month: 'MAY', received: 145, disposed: 130, overdue: 12 },
@@ -56,11 +59,40 @@ export const TrendChart: React.FC = () => {
           <div className="relative">
             <button
               type="button"
+              aria-haspopup="menu"
+              aria-expanded={showPeriodMenu}
+              onClick={() => setShowPeriodMenu((open) => !open)}
               className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             >
               <span>{period}</span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
+
+            {showPeriodMenu && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-2 z-50 w-36 rounded-xl border border-slate-200 bg-white p-1.5 text-xs shadow-xl"
+              >
+                {periods.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setPeriod(option);
+                      setShowPeriodMenu(false);
+                    }}
+                    className={`w-full rounded-lg px-2.5 py-1.5 text-left font-medium transition cursor-pointer ${
+                      period === option
+                        ? 'bg-[#EBF3FE] text-[#1E3A8A] font-bold'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -59,10 +59,14 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    const initial = setTimeout(loadData, 0);
     const timer = setInterval(() => {
       loadData();
     }, 30000);
-    return () => clearInterval(timer);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(timer);
+    };
   }, [loadData]);
 
   useEffect(() => {

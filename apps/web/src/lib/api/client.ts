@@ -3,14 +3,16 @@ import {
   Case,
   CaseAction,
   CaseLink,
-  DashboardSummary,
   BureauWorkload,
-  RegionHeatmapData,
   Institution,
   InstitutionRisk,
   WebFinding,
   OverlapDecision,
 } from '@/lib/types';
+import type { components } from './schema';
+
+type DashboardSummaryApi = components['schemas']['DashboardSummaryOut'];
+type HeatmapRowApi = components['schemas']['HeatmapRow'];
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -34,16 +36,16 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   return await res.json();
 }
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
-  return request<DashboardSummary>('/dashboard/summary');
+export async function getDashboardSummary(): Promise<DashboardSummaryApi> {
+  return request<DashboardSummaryApi>('/dashboard/summary');
 }
 
 export async function getBureauWorkload(): Promise<BureauWorkload[]> {
   return request<BureauWorkload[]>('/dashboard/workload');
 }
 
-export async function getRegionHeatmap(): Promise<RegionHeatmapData[]> {
-  return request<RegionHeatmapData[]>('/dashboard/heatmap');
+export async function getRegionHeatmap(): Promise<HeatmapRowApi[]> {
+  return request<HeatmapRowApi[]>('/dashboard/heatmap');
 }
 
 export async function getPriorityQueue(): Promise<Case[]> {
