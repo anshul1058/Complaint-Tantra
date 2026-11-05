@@ -9,17 +9,20 @@ import { StatusSummaryCard } from '@/components/dashboard/StatusSummaryCard';
 import { TodoRemindersCard } from '@/components/dashboard/TodoRemindersCard';
 import { RegionHeatmap } from '@/components/dashboard/RegionHeatmap';
 import { DataDecisionsBanner } from '@/components/dashboard/DataDecisionsBanner';
+import { RecentComplaintsCard } from '@/components/dashboard/RecentComplaintsCard';
 import {
   getDashboardSummary,
   getBureauWorkload,
   getRegionHeatmap,
   getAlerts,
+  getPriorityQueue,
 } from '@/lib/api/client';
 import {
   DashboardSummary,
   BureauWorkload,
   RegionHeatmapData,
   Alert,
+  Case,
 } from '@/lib/types';
 const EMPTY_SUMMARY: DashboardSummary = {
   total: 0, pending: 0, under_process: 0, disposed: 0, transferred: 0,
@@ -36,21 +39,24 @@ export default function DashboardPage() {
   const [workload, setWorkload] = useState<BureauWorkload[]>([]);
   const [heatmap, setHeatmap] = useState<RegionHeatmapData[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [recentCases, setRecentCases] = useState<Case[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [s, w, h, a] = await Promise.all([
+      const [s, w, h, a, cases] = await Promise.all([
         getDashboardSummary(),
         getBureauWorkload(),
         getRegionHeatmap(),
         getAlerts(),
+        getPriorityQueue(),
       ]);
       setSummary(s);
       setWorkload(w);
       setHeatmap(h);
       setAlerts(a);
+      setRecentCases(cases.slice(0, 10));
     } catch {
       // fallback
     } finally {
@@ -143,6 +149,10 @@ export default function DashboardPage() {
           <DataDecisionsBanner />
         </div>
 
+      </div>
+
+      <div className="mb-6">
+        <RecentComplaintsCard cases={recentCases} />
       </div>
 
       {/* 4. SIH 2024 EVALUATOR QUICK TOUR BANNER */}
