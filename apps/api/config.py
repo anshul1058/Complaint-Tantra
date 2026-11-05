@@ -4,7 +4,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_DIR = Path(__file__).resolve().parent
+# Locally this module lives at <repo>/apps/api; in the Docker image the
+# apps/api directory is copied directly to /app.
+REPO_ROOT = CONFIG_DIR.parent.parent if CONFIG_DIR.parent.name == "apps" else CONFIG_DIR
 
 # Agents (LiteLLM, Tavily) read os.getenv directly; make .env visible to them too.
 load_dotenv(REPO_ROOT / ".env", override=False)
