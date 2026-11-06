@@ -8,6 +8,7 @@ import {
   InstitutionRisk,
   WebFinding,
   OverlapDecision,
+  PriorityReasons,
 } from '@/lib/types';
 import type { components } from './schema';
 
@@ -15,6 +16,25 @@ type DashboardSummaryApi = components['schemas']['DashboardSummaryOut'];
 type HeatmapRowApi = components['schemas']['HeatmapRow'];
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+const EMPTY_PRIORITY_COMPONENTS = { criticality: 0, emotion: 0, time: 0, risk: 0, overlap: 0 };
+
+function normalizeCase(c: Case): Case {
+  const score = c.priority_score ?? 0;
+  const reasons: PriorityReasons = c.priority_reasons
+    ? {
+        priority_score: c.priority_reasons.priority_score ?? score,
+        components: { ...EMPTY_PRIORITY_COMPONENTS, ...c.priority_reasons.components },
+        reasons: Array.isArray(c.priority_reasons.reasons) ? c.priority_reasons.reasons : [],
+      }
+    : { priority_score: score, components: EMPTY_PRIORITY_COMPONENTS, reasons: [] };
+  return {
+    ...c,
+    priority_score: score,
+    emotion_intensity: c.emotion_intensity ?? 0,
+    priority_reasons: reasons,
+  };
+}
 
 export interface PublicComplaintPayload {
   complainant_name: string;
@@ -88,7 +108,8 @@ export async function getRegionHeatmap(): Promise<HeatmapRowApi[]> {
 }
 
 export async function getPriorityQueue(): Promise<Case[]> {
-  return request<Case[]>('/cases?sort=priority&limit=50');
+  const cases = await request<Case[]>('/cases?sort=priority&limit=50');
+  return cases.map(normalizeCase);
 }
 
 export async function getCases(filters?: {
@@ -106,11 +127,12 @@ export async function getCases(filters?: {
   if (filters?.search) params.set('search', filters.search);
   if (filters?.permanent_id) params.set('permanent_id', filters.permanent_id);
   if (filters?.institution) params.set('institution', filters.institution);
-  return request<Case[]>(`/cases?${params.toString()}`);
+  const cases = await request<Case[]>(`/cases?${params.toString()}`);
+  return cases.map(normalizeCase);
 }
 
 export async function getCase(id: string): Promise<Case> {
-  return request<Case>(`/cases/${id}`);
+  return normalizeCase(await request<Case>(`/cases/${id}`));
 }
 
 export async function getCaseActions(caseId: string): Promise<CaseAction[]> {
@@ -139,10 +161,12 @@ export async function postCaseAction(
   caseId: string,
   payload: { action: string; remarks: string; to_state?: string }
 ): Promise<Case> {
-  return request<Case>(`/cases/${caseId}/actions`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  return normalizeCase(
+    await request<Case>(`/cases/${caseId}/actions`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  );
 }
 
 export async function getInstitution(id: string): Promise<Institution> {

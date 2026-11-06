@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { GovHeader } from '@/components/layout/GovHeader';
 import { AppSidebar } from '@/components/layout/AppSidebar';
@@ -13,6 +13,10 @@ interface AppLayoutProps {
   actionButton?: React.ReactNode;
 }
 
+const subscribe = () => () => {};
+const useIsClient = () =>
+  useSyncExternalStore(subscribe, () => true, () => false);
+
 export const AppLayout: React.FC<AppLayoutProps> = ({
   children,
   pageTitle,
@@ -20,12 +24,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 }) => {
   const router = useRouter();
   const { user } = useAuth();
+  const mounted = useIsClient();
 
   useEffect(() => {
-    if (!user) router.replace('/login');
-  }, [router, user]);
+    if (mounted && !user) router.replace('/login');
+  }, [mounted, router, user]);
 
-  if (!user) return null;
+  if (!mounted || !user) return null;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F3F7FD] text-slate-900 selection:bg-sky-100 selection:text-[#1E3A8A]">
