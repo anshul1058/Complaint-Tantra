@@ -38,7 +38,16 @@ async def summary(
 ) -> DashboardSummaryOut:
     """KPI counts — numbers from SQL only (§7, §6.6)."""
     now = datetime.now(timezone.utc)
-    scoped = _scoped(select(Case), user).subquery()
+    # Keep the aggregate subquery narrow. Selecting the ORM entity here also
+    # pulls large text/embedding columns into the database workset even though
+    # the dashboard only needs these five scalar fields.
+    scoped = _scoped(select(
+        Case.id,
+        Case.status,
+        Case.expected_disposal,
+        Case.priority_score,
+        Case.assigned_bureau,
+    ), user).subquery()
     total, overdue, due_soon, avg_priority = (await db.execute(
         select(
             func.count(scoped.c.id),

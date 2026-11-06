@@ -19,9 +19,20 @@ async def sla_check() -> None:
     today = now.date()
     async with SessionLocal() as db:
         configs = {r.category: r for r in (await db.execute(select(SlaConfig))).scalars()}
+        # Do not hydrate full Case entities: complaint text, JSON reasons, and
+        # the 1024-dimension embedding are not needed by the SLA check.
         cases = (await db.execute(
-            select(Case).where(Case.status.notin_(("Disposed",)))
-        )).scalars().all()
+            select(
+                Case.id,
+                Case.case_no,
+                Case.category,
+                Case.received_at,
+                Case.expected_disposal,
+                Case.status,
+                Case.last_action_at,
+                Case.assigned_officer,
+            ).where(Case.status.notin_(("Disposed",)))
+        )).mappings().all()
         existing = {
             (a.case_id, a.kind)
             for a in (await db.execute(
@@ -116,17 +127,22 @@ async def daily_digest() -> None:
         )).first()
         if existing:
             return
-        cases = (await db.execute(
-            select(Case).where(Case.status.notin_(("Disposed",)))
-        )).scalars().all()
-        overdue = sum(1 for c in cases if c.expected_disposal and c.expected_disposal < now)
+        total_open, overdue = (await db.execute(
+            select(
+                func.count(),
+                func.count().filter(
+                    Case.expected_disposal.is_not(None),
+                    Case.expected_disposal < now,
+                ),
+            ).where(Case.status.notin_(("Disposed",)))
+        )).one()
         new = (await db.execute(
             select(func.count()).select_from(Case).where(Case.received_at >= since)
         )).scalar() or 0
         db.add(Alert(
             kind="digest",
             severity="low",
-            message=f"Daily digest: {len(cases)} open, {overdue} overdue, {new} new",
+            message=f"Daily digest: {total_open} open, {overdue} overdue, {new} new",
             target_role=None,
         ))
         await db.commit()
