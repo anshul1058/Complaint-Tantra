@@ -3,7 +3,6 @@ from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import NullPool
 
 from config import settings
 
@@ -22,7 +21,10 @@ def _async_url(url: str) -> str:
 # the cache disabled for pooler URLs; it is safe for direct Postgres URLs too.
 engine = create_async_engine(
     _async_url(settings.database_url),
-    poolclass=NullPool,
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
     pool_pre_ping=True,
     connect_args={
         "statement_cache_size": 0,

@@ -120,10 +120,32 @@ async def _enrich_cases(db: AsyncSession, rows: list[Case], now: datetime) -> li
     return out
 
 
-async def _link_case_summary(db: AsyncSession, case: Case) -> CaseRedactedOut:
-    inst = await db.get(Institution, case.institution_id) if case.institution_id else None
-    officer = await db.get(User, case.assigned_officer) if case.assigned_officer else None
-    return _redacted(case, inst.name if inst else None, officer)
+async def _link_case_summaries(
+    db: AsyncSession, cases: list[Case]
+) -> dict[uuid.UUID, CaseRedactedOut]:
+    """Bulk-load institution and officer names for a set of linked cases."""
+    if not cases:
+        return {}
+    inst_ids = {c.institution_id for c in cases if c.institution_id}
+    officer_ids = {c.assigned_officer for c in cases if c.assigned_officer}
+    insts = {
+        i.id: i for i in (await db.execute(
+            select(Institution).where(Institution.id.in_(inst_ids))
+        )).scalars()
+    } if inst_ids else {}
+    officers = {
+        u.id: u for u in (await db.execute(
+            select(User).where(User.id.in_(officer_ids))
+        )).scalars()
+    } if officer_ids else {}
+    return {
+        c.id: _redacted(
+            c,
+            insts[c.institution_id].name if c.institution_id in insts else None,
+            officers.get(c.assigned_officer),
+        )
+        for c in cases
+    }
 
 
 async def _enrich_actions(db: AsyncSession, actions: list[CaseAction]) -> list[ActionOut]:
@@ -263,27 +285,12 @@ async def get_case(
         detail.priority_reasons = None
         detail.case_brief = None
     else:
-        try:
-            from agents.briefing import write_brief
-
-            ctx = {
-                "priority_score": case.priority_score,
-                "priority_reasons": case.priority_reasons,
-                "overlaps": [],
-                "institution_track_record": None,
-            }
-            detail.case_brief = write_brief(
-                {
-                    "case_no": case.case_no,
-                    "category": case.category,
-                    "criticality": case.criticality,
-                    "ai_summary": case.ai_summary,
-                    "status": case.status,
-                },
-                ctx,
-            )
-        except Exception:
-            detail.case_brief = None
+        detail.case_brief = {
+            "case_brief": case.ai_summary or "",
+            "suggested_next_action": case.next_action or "Review and take appropriate action",
+            "key_points": [],
+            "source": "rules",
+        }
     return detail
 
 
@@ -353,16 +360,22 @@ async def case_overlaps(
     links = (await db.execute(
         select(CaseLink).where(or_(CaseLink.case_a == case.id, CaseLink.case_b == case.id))
     )).scalars().all()
+    other_ids = {link.case_b if link.case_a == case.id else link.case_a for link in links}
+    others = {
+        c.id: c for c in (await db.execute(
+            select(Case).where(Case.id.in_(other_ids))
+        )).scalars()
+    } if other_ids else {}
+    summaries = await _link_case_summaries(db, [case, *others.values()])
     out = []
     for link in links:
-        other_id = link.case_b if link.case_a == case.id else link.case_a
-        other = await db.get(Case, other_id)
+        other = others.get(link.case_b if link.case_a == case.id else link.case_a)
         if other is None:
             continue
         lo = LinkOut.model_validate(link)
-        lo.other_case = await _link_case_summary(db, other)
-        lo.case_a_details = lo.other_case if link.case_a == other.id else await _link_case_summary(db, case)
-        lo.case_b_details = lo.other_case if link.case_b == other.id else await _link_case_summary(db, case)
+        lo.other_case = summaries[other.id]
+        lo.case_a_details = summaries[link.case_a]
+        lo.case_b_details = summaries[link.case_b]
         out.append(lo)
     return out
 
@@ -381,10 +394,18 @@ async def all_overlaps(
         stmt = stmt.where(CaseLink.decision == decision)
     if tier:
         stmt = stmt.where(CaseLink.tier == tier)
+    links = (await db.execute(stmt)).scalars().all()
+    case_ids = {cid for link in links for cid in (link.case_a, link.case_b)}
+    cases = {
+        c.id: c for c in (await db.execute(
+            select(Case).where(Case.id.in_(case_ids))
+        )).scalars()
+    } if case_ids else {}
+    summaries = await _link_case_summaries(db, list(cases.values()))
     out: list[LinkOut] = []
-    for link in (await db.execute(stmt)).scalars():
-        case_a = await db.get(Case, link.case_a)
-        case_b = await db.get(Case, link.case_b)
+    for link in links:
+        case_a = cases.get(link.case_a)
+        case_b = cases.get(link.case_b)
         if case_a is None or case_b is None:
             continue
         if not (
@@ -393,8 +414,8 @@ async def all_overlaps(
         ):
             continue
         lo = LinkOut.model_validate(link)
-        lo.case_a_details = await _link_case_summary(db, case_a)
-        lo.case_b_details = await _link_case_summary(db, case_b)
+        lo.case_a_details = summaries[case_a.id]
+        lo.case_b_details = summaries[case_b.id]
         lo.other_case = lo.case_b_details
         out.append(lo)
         if len(out) >= limit:
