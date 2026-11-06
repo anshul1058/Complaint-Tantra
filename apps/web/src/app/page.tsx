@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { KPICards } from '@/components/dashboard/KPICards';
 import { TrendChart } from '@/components/dashboard/TrendChart';
@@ -41,29 +41,29 @@ export default function DashboardPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [recentCases, setRecentCases] = useState<Case[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const loadingRef = useRef(false);
 
   const loadData = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setIsRefreshing(true);
-    try {
-      const [s, w, h, a, cases] = await Promise.all([
-        getDashboardSummary(),
-          // These two views are intentionally restricted to senior/authority
-          // users. A 403 here must not hide the officer's core dashboard.
-          getBureauWorkload().catch(() => []),
-          getRegionHeatmap().catch(() => []),
-        getAlerts(),
-        getPriorityQueue(),
-      ]);
-      setSummary(s);
-      setWorkload(w);
-      setHeatmap(h);
-      setAlerts(a);
-      setRecentCases(cases.slice(0, 10));
-    } catch {
-      // fallback
-    } finally {
-      setIsRefreshing(false);
-    }
+    const requests = [
+      // Update KPIs as soon as their request completes; secondary widgets
+      // must not delay the most important data on the page.
+      getDashboardSummary().then(setSummary).catch(() => undefined),
+      // These two views are intentionally restricted to senior/authority
+      // users. A 403 here must not hide the officer's core dashboard.
+      getBureauWorkload().then(setWorkload).catch(() => undefined),
+      getRegionHeatmap().then(setHeatmap).catch(() => undefined),
+      getAlerts().then(setAlerts).catch(() => undefined),
+      getPriorityQueue()
+        .then((cases) => setRecentCases(cases.slice(0, 10)))
+        .catch(() => undefined),
+    ];
+
+    await Promise.allSettled(requests);
+    loadingRef.current = false;
+    setIsRefreshing(false);
   }, []);
 
   useEffect(() => {

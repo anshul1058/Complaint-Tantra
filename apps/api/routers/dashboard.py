@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import ROLE_AUTHORITY, ROLE_SENIOR, get_current_user, require_roles
@@ -38,25 +38,33 @@ async def summary(
 ) -> DashboardSummaryOut:
     """KPI counts — numbers from SQL only (§7, §6.6)."""
     now = datetime.now(timezone.utc)
-    rows = (await db.execute(_scoped(select(Case), user))).scalars().all()
+    scoped = _scoped(select(Case), user).subquery()
+    total, overdue, due_soon, avg_priority = (await db.execute(
+        select(
+            func.count(scoped.c.id),
+            func.count().filter(and_(
+                scoped.c.status != "Disposed",
+                scoped.c.expected_disposal.is_not(None),
+                scoped.c.expected_disposal < now,
+            )),
+            func.count().filter(and_(
+                scoped.c.status != "Disposed",
+                scoped.c.expected_disposal.is_not(None),
+                scoped.c.expected_disposal >= now,
+                scoped.c.expected_disposal <= now + timedelta(days=3),
+            )),
+            func.avg(scoped.c.priority_score),
+        )
+    )).one()
 
-    status_counts: dict[str, int] = {}
-    bureau_counts: dict[str, int] = {}
-    scores = []
-    overdue = due_soon = 0
-    for case in rows:
-        status_counts[case.status] = status_counts.get(case.status, 0) + 1
-        bureau_counts[case.assigned_bureau] = bureau_counts.get(case.assigned_bureau, 0) + 1
-        if case.priority_score is not None:
-            scores.append(case.priority_score)
-        if _overdue(case, now):
-            overdue += 1
-        elif (
-            case.status != "Disposed"
-            and case.expected_disposal is not None
-            and case.expected_disposal <= now + timedelta(days=3)
-        ):
-            due_soon += 1
+    status_rows = (await db.execute(
+        select(scoped.c.status, func.count()).group_by(scoped.c.status)
+    )).all()
+    status_counts = {status: count for status, count in status_rows}
+    bureau_rows = (await db.execute(
+        select(scoped.c.assigned_bureau, func.count()).group_by(scoped.c.assigned_bureau)
+    )).all()
+    bureau_counts = {bureau: count for bureau, count in bureau_rows}
 
     safety_stmt = select(func.count(func.distinct(Alert.case_id))).where(
         Alert.kind.in_(("safety", "safety_flag"))
@@ -64,20 +72,20 @@ async def summary(
     safety_flagged = (await db.execute(safety_stmt)).scalar() or 0
 
     return DashboardSummaryOut(
-        total=len(rows),
+        total=total or 0,
         pending=status_counts.get("Received", 0),
         under_process=status_counts.get("UnderProcess", 0),
         disposed=status_counts.get("Disposed", 0),
         transferred=status_counts.get("Transferred", 0),
         escalated=status_counts.get("Escalated", 0),
         reopened=status_counts.get("Reopened", 0),
-        overdue=overdue,
-        due_soon=due_soon,
+        overdue=overdue or 0,
+        due_soon=due_soon or 0,
         safety_flagged=safety_flagged,
         open=sum(status_counts.get(s, 0) for s in OPEN_STATUSES),
         by_status=status_counts,
         by_bureau=bureau_counts,
-        avg_priority=round(sum(scores) / len(scores), 1) if scores else None,
+        avg_priority=round(float(avg_priority), 1) if avg_priority is not None else None,
     )
 
 
@@ -87,27 +95,24 @@ async def workload(
     _: Annotated[User, Depends(require_roles(ROLE_SENIOR, ROLE_AUTHORITY, "admin"))],
 ) -> list[WorkloadRow]:
     now = datetime.now(timezone.utc)
-    rows = (await db.execute(select(Case))).scalars().all()
-    agg: dict[str, dict] = {}
-    for case in rows:
-        a = agg.setdefault(case.assigned_bureau, {
-            "pending": 0, "under_process": 0, "disposed": 0, "transferred": 0,
-            "escalated": 0, "reopened": 0, "overdue": 0, "total": 0,
-        })
-        a["total"] += 1
-        key = {
-            "Received": "pending",
-            "UnderProcess": "under_process",
-            "Disposed": "disposed",
-            "Transferred": "transferred",
-            "Escalated": "escalated",
-            "Reopened": "reopened",
-        }.get(case.status)
-        if key:
-            a[key] += 1
-        if _overdue(case, now):
-            a["overdue"] += 1
-    return [WorkloadRow(bureau=b, **a) for b, a in sorted(agg.items())]
+    rows = (await db.execute(
+        select(
+            Case.assigned_bureau,
+            func.count().label("total"),
+            func.count().filter(Case.status == "Received").label("pending"),
+            func.count().filter(Case.status == "UnderProcess").label("under_process"),
+            func.count().filter(Case.status == "Disposed").label("disposed"),
+            func.count().filter(Case.status == "Transferred").label("transferred"),
+            func.count().filter(Case.status == "Escalated").label("escalated"),
+            func.count().filter(Case.status == "Reopened").label("reopened"),
+            func.count().filter(and_(
+                Case.status != "Disposed",
+                Case.expected_disposal.is_not(None),
+                Case.expected_disposal < now,
+            )).label("overdue"),
+        ).group_by(Case.assigned_bureau)
+    )).mappings().all()
+    return [WorkloadRow(**row) for row in rows]
 
 
 @router.get("/heatmap", response_model=list[HeatmapRow])
@@ -117,17 +122,22 @@ async def heatmap(
 ) -> list[HeatmapRow]:
     now = datetime.now(timezone.utc)
     rows = (await db.execute(
-        select(Institution.region, Institution.state, Case)
+        select(
+            func.coalesce(Institution.region, "Unknown").label("region"),
+            func.coalesce(Institution.state, "Unspecified").label("state"),
+            func.count().label("count"),
+            func.count().filter(and_(
+                Case.status != "Disposed",
+                Case.expected_disposal.is_not(None),
+                Case.expected_disposal < now,
+            )).label("overdue"),
+            func.count().filter(and_(
+                Case.criticality == "C1",
+                Case.status != "Disposed",
+            )).label("critical"),
+        )
         .join(Case, Case.institution_id == Institution.id)
-    )).all()
-    agg: dict[tuple[str, str], dict] = {}
-    for region, state, case in rows:
-        key = (region or "Unknown", state or "Unspecified")
-        a = agg.setdefault(key, {"count": 0, "overdue": 0, "critical": 0})
-        a["count"] += 1
-        if _overdue(case, now):
-            a["overdue"] += 1
-        if case.criticality == "C1" and case.status != "Disposed":
-            a["critical"] += 1
-    out = [HeatmapRow(region=r, state=s, **a) for (r, s), a in agg.items()]
-    return sorted(out, key=lambda x: x.count, reverse=True)
+        .group_by(Institution.region, Institution.state)
+        .order_by(func.count().desc())
+    )).mappings().all()
+    return [HeatmapRow(**row) for row in rows]
