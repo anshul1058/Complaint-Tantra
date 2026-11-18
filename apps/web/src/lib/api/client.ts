@@ -239,5 +239,8 @@ export async function downloadReport(type: ReportType, format: 'csv' | 'pdf'): P
 }
 
 export function eventsUrl(token: string): string {
-  return `${API_BASE.replace(/^http/, 'ws')}/ws/events?token=${encodeURIComponent(token)}`;
+  const base = API_BASE.startsWith('/')
+    ? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`
+    : API_BASE.replace(/^http/, 'ws');
+  return `${base}/ws/events?token=${encodeURIComponent(token)}`;
 }
