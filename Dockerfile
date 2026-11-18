@@ -22,7 +22,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 python3-pip nginx build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/* \
     && addgroup --system nodejs \
-    && adduser --system --ingroup nodejs nextjs
+    && adduser --system --ingroup nodejs nextjs \
+    && mkdir -p /tmp/nginx/client_temp /tmp/nginx/proxy_temp /tmp/nginx/fastcgi_temp /tmp/nginx/uwsgi_temp /tmp/nginx/scgi_temp \
+    && chown -R nextjs:nodejs /tmp/nginx
 COPY apps/api/requirements.txt /tmp/api-requirements.txt
 RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/api-requirements.txt
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
@@ -30,6 +32,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY apps/api ./api
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY start.sh /start.sh
+RUN chmod 755 /start.sh
 USER nextjs
 EXPOSE 10000
-CMD ["sh", "-c", "python3 -m uvicorn main:app --app-dir /app/api --host 127.0.0.1 --port 8000 & PORT=3000 HOSTNAME=127.0.0.1 node server.js & exec nginx -g 'daemon off;'"]
+CMD ["/start.sh"]
